@@ -1,0 +1,37 @@
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4>Calculadoras Cardiológicas Pediátricas (Z-Scores y BSA)</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="peso" class="form-label">Peso Actual (kg)</label>
+                        <input type="number" step="0.01" class="form-control" name="peso" required placeholder="Ej: 10.5">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="talla" class="form-label">Talla / Estatura (cm)</label>
+                        <input type="number" step="0.1" class="form-control" name="talla" required placeholder="Ej: 75.0">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="medida_aorta" class="form-label">Medida Raíz Aórtica (cm) [Opcional]</label>
+                        <input type="number" step="0.01" class="form-control" name="medida_aorta" placeholder="Ej: 1.8">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success">Calcular Parámetros Pediátricos</button>
+            </form>
+
+            {% if bsa is not none %}
+            <hr class="my-4">
+            <div class="alert alert-info">
+                <h5>Resultados del Análisis:</h5>
+                <p class="mb-1"><strong>Superficie Corporal (Haycock):</strong> <span class="fs-4 text-dark">{{ bsa }} m²</span></p>
+                {% if z_aorta is not none %}
+                <p class="mb-0"><strong>Z-Score Raíz Aórtica:</strong> <span class="fs-4 text-danger">{{ z_aorta }}</span> (Valores normales entre -2 y +2)</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
