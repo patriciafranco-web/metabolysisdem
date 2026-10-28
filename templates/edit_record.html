@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary btn-sm">⬅️ Cancelar</a>
+        <h2 class="text-warning fw-bold m-0">✏️ Editar Consulta</h2>
+    </div>
+
+    <div class="card p-4 shadow-sm" style="background-color: #1e1e1e; border: 1px solid #333;">
+        <form method="POST" action="{{ url_for('edit_record', id=record.id) }}">
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label text-light">Fecha de Control *</label>
+                    <input type="date" class="form-control bg-dark text-white border-secondary" name="date" value="{{ record.date }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Balanza Utilizada</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="marca_balanza" value="{{ record.marca_balanza }}">
+                </div>
+            </div>
+
+            <h5 class="text-danger border-bottom border-secondary pb-2">Antropometría Principal</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-2">
+                    <label class="form-label text-light">Altura (cm)</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="height" value="{{ record.height }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">Peso (kg) *</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary text-warning fw-bold" name="weight" value="{{ record.weight }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">Cintura (cm)</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="waist" value="{{ record.waist }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">Grasa Corp (%)</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="body_fat_pct" value="{{ record.body_fat_pct }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">Grasa Corp (kg)</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="body_fat_kg" value="{{ record.body_fat_kg }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">Grasa Visceral</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="visceral_fat" value="{{ record.visceral_fat }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Músculo (kg)</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="muscle_mass_kg" value="{{ record.muscle_mass_kg }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Metabolismo (kcal)</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="basal_metabolism" value="{{ record.basal_metabolism }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">PA (ej. 120/80)</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="pa" value="{{ record.pa }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Frec. Cardíaca</label>
+                    <input type="number" class="form-control bg-dark text-white border-secondary" name="fc" value="{{ record.fc }}">
+                </div>
+            </div>
+
+            <!-- SECCIÓN NUEVA QUE FALTABA: LABORATORIOS -->
+            <h5 class="text-danger border-bottom border-secondary pb-2 mt-4">Laboratorios y Bioquímica</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-2">
+                    <label class="form-label text-light">Glicemia</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="glucose" value="{{ record.glucose }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">Insulina</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="insulin" value="{{ record.insulin }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">HbA1c (%)</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="hba1c" value="{{ record.hba1c }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Triglicéridos</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="triglycerides" value="{{ record.triglycerides }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Colesterol Total</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="cholesterol_tot" value="{{ record.cholesterol_tot }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">HDL</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="hdl" value="{{ record.hdl }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">LDL</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="ldl" value="{{ record.ldl }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">VLDL</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="vldl" value="{{ record.vldl }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Ácido Úrico</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="uric_acid" value="{{ record.uric_acid }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">GOT</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="got" value="{{ record.got }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">GPT</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="gpt" value="{{ record.gpt }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">FA</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="fa" value="{{ record.fa }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">TSH</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="tsh" value="{{ record.tsh }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">T4</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="t4" value="{{ record.t4 }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">T3</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="t3" value="{{ record.t3 }}">
+                </div>
+            </div>
+
+            <div class="alert alert-info bg-dark border-secondary text-light mt-4">
+                <i class="bi bi-info-circle text-info"></i> Al guardar, el sistema <strong>recalculará automáticamente</strong> todo el historial y las diferencias ordenándolos de forma cronológica.
+            </div>
+            
+            <button type="submit" class="btn btn-warning fw-bold text-dark w-100 py-3 mt-3 fs-5">💾 Guardar Cambios de la Consulta</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    var form = document.querySelector("form");
+    if(form) {
+        form.addEventListener("submit", function(e) {
+            var btn = form.querySelector("button[type='submit']");
+            if(btn) {
+                btn.innerHTML = "⏳ Guardando, por favor espere...";
+                btn.classList.add("disabled");
+                btn.style.pointerEvents = "none";
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
