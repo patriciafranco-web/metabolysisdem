@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Nuevo Paciente - METABOLISYS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { background-color: #1e1e1e; border: 1px solid #333; color: #fff; }
+        .form-control, .form-select { background-color: #2a2a2a; border: 1px solid #444; color: #fff; }
+        .form-control:focus, .form-select:focus { background-color: #333; border-color: #ff6b6b; color: #fff; box-shadow: none; }
+        .btn-primary { background-color: #e63946; border: none; }
+        .btn-primary:hover { background-color: #d90429; }
+        .section-title { color: #ff6b6b; border-bottom: 1px solid #333; padding-bottom: 5px; margin-top: 25px; margin-bottom: 15px; }
+        .form-check-input { background-color: #2a2a2a; border-color: #555; }
+        .form-check-input:checked { background-color: #e63946; border-color: #e63946; }
+    </style>
+</head>
+<body class="py-5">
+<div class="container" style="max-width: 950px;">
+    <div class="card p-4 shadow-lg rounded-4">
+        <h2 class="mb-2 text-center text-danger fw-bold">❤️ METABOLISYS</h2>
+        <h4 class="mb-4 text-center">Registro de Nuevo Paciente (Filiación y Antecedentes)</h4>
+        
+        <form method="POST">
+            <h5 class="section-title text-danger">1. Datos de Filiación</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nombre y Apellido *</label>
+                    <input type="text" class="form-control" name="full_name" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Cédula de Identidad (CI) *</label>
+                    <input type="text" class="form-control" name="ci" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fecha de Nacimiento</label>
+                    <input type="date" class="form-control" name="birth_date">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Edad (años) *</label>
+                    <input type="number" class="form-control" name="age" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Género *</label>
+                    <select class="form-select" name="gender" id="genderSelect" required onchange="toggleGenderFields()">
+                        <option value="Mujer">Mujer</option>
+                        <option value="Hombre">Hombre</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Teléfono</label>
+                    <input type="text" class="form-control" name="phone">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Procedencia</label>
+                    <input type="text" class="form-control" name="procedencia" placeholder="Ej. Luque">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Profesión</label>
+                    <input type="text" class="form-control" name="profession">
+                </div>
+                
+                <!-- NUEVOS CAMPOS SOLICITADOS POR LA DRA. SOFÍA -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-warning">Seguro Médico</label>
+                    <input type="text" class="form-control" name="seguro_medico" placeholder="Ej. San Roque / Copetrol">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-warning">Fecha de Inicio de Tratamiento</label>
+                    <input type="text" class="form-control" name="fecha_inicio_tratamiento" placeholder="Ej. Enero 2026">
+                </div>
+                <!-- FIN DE NUEVOS CAMPOS -->
+
+                <div class="col-md-6">
+                    <label class="form-label">Sanatorio / Consultorio *</label>
+                    <input type="text" class="form-control" name="sanatorio" required value="Consultorio Principal">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Tipo de Patología Principal</label>
+                    <input type="text" class="form-control" name="pathology_type" value="Diabetes / Obesidad">
+                </div>
+            </div>
+
+            <h5 class="section-title text-danger">2. Antecedentes y Tratamiento</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Antecedentes Patológicos Familiares</label>
+                    <textarea class="form-control text-white" name="antecedentes_familiares" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Antecedentes Patológicos Personales</label>
+                    <textarea class="form-control text-white" name="antecedentes_personales" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Historial de Cirugías</label>
+                    <textarea class="form-control text-white" name="historial_cirugias" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Alergia a algún Fármaco</label>
+                    <textarea class="form-control text-white" name="alergia_farmacos" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Tratamiento Base / Medicación Actual</label>
+                    <textarea class="form-control text-white" name="tratamiento_base" rows="2"></textarea>
+                </div>
+            </div>
+
+            <!-- Sección Ginecológica condicional (Solo si es Mujer) -->
+            <div id="genderSection">
+                <h5 class="section-title text-danger">3. Datos Ginecológicos</h5>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Cantidad de Hijos</label>
+                        <input type="text" class="form-control" name="cant_hijos">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Menarca (edad)</label>
+                        <input type="text" class="form-control" name="menarca">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Menstruación Regular</label>
+                        <input type="text" class="form-control" name="menstruacion_regular" placeholder="Sí / No">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Utiliza Anticonceptivos?</label>
+                        <input type="text" class="form-control" name="anticonceptivos" placeholder="Sí / No / Cuál">
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="section-title text-danger">4. Estilo de Vida</h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Calidad del Sueño</label>
+                    <input type="text" class="form-control" name="calidad_sueno" placeholder="Buena / Regular / Mala">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Actividad Física</label>
+                    <input type="text" class="form-control" name="actividad_fisica" placeholder="Frecuencia y tipo">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fuma? Toma Alcohol?</label>
+                    <input type="text" class="form-control" name="fuma_alcohol">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Cuántas veces al día come?</label>
+                    <input type="text" class="form-control" name="veces_come">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Consume Gaseosa o Jugo?</label>
+                    <input type="text" class="form-control" name="consume_gaseosa_jugo">
+                </div>
+            </div>
+
+            <!-- Sección Desplegable para Checkup GLP-1 con tabla de Sí/No -->
+            <div class="mt-4">
+                <button class="btn btn-outline-warning w-100 py-2 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#glp1Collapse">
+                    📋 Checklist GLP-1 y Antecedentes Críticos (Hacer clic para desplegar matriz)
+                </button>
+                <div class="collapse mt-3" id="glp1Collapse">
+                    <div class="card card-body bg-dark border-secondary">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-striped table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Criterio / Antecedente Clínico</th>
+                                        <th class="text-center" style="width: 80px;">NO</th>
+                                        <th class="text-center" style="width: 80px;">SÍ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Antecedentes personales o familiares de carcinoma medular de tiroides (MTC)</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_1" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_1" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Diagnóstico de neoplasia endocrina múltiple tipo 2 (MEN2)</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_2" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_2" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Antecedentes de Pancreatitis aguda o crónica</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_3" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_3" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Antecedentes/enfermedad actual de vesícula biliar (cálculos, colecistitis)</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_4" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_4" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Enfermedad gastrointestinal severa o gastroparesia</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_5" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_5" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Enfermedad renal crónica o episodios de deshidratación frecuentes</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_6" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_6" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Enfermedad hepática grave</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_7" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_7" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Retinopatía diabética conocida</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_8" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_8" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Historia de depresión severa, ideación o conducta suicida</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_9" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_9" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Cirugía o anestesia general/sedación profunda programada pronto</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_10" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_10" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Uso concomitante de otros fármacos para bajar de peso o GLP-1</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_11" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_11" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Uso de insulina o sulfonilureas?</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_12" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_12" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Fármacos orales con margen terapéutico estrecho</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_13" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_13" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Alergia/hipersensibilidad previa a GLP-1 o excipientes</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_14" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_14" value="Sí"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Plan de embarazo en los próximos 2 meses o cercano / Lactancia</td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_15" value="No" checked></td>
+                                        <td class="text-center"><input class="form-check-input" type="radio" name="glp1_15" value="Sí"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label text-warning small">Observaciones adicionales del Checkup:</label>
+                            <textarea class="form-control text-white bg-black" name="checklist_glp1_notas" rows="2" placeholder="Detalles adicionales..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-5">
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary px-4">Guardar Paciente</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleGenderFields() {
+    const gender = document.getElementById('genderSelect').value;
+    const genderSection = document.getElementById('genderSection');
+    if (gender === 'Mujer') {
+        genderSection.style.display = 'block';
+    } else {
+        genderSection.style.display = 'none';
+    }
+}
+toggleGenderFields();
+
+// --- SISTEMA DE AUTOGUARDADO (BORRADOR AUTOMÁTICO) ---
+document.addEventListener("DOMContentLoaded", function() {
+    var form = document.querySelector("form");
+    if (!form) return;
+
+    var draftKey = "draft_" + window.location.pathname;
+
+    // 1. RECUPERAR: Si hay un borrador guardado, rellenar el formulario
+    var savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+        var formData = JSON.parse(savedDraft);
+        for (var key in formData) {
+            var field = form.querySelector("[name='" + key + "']");
+            if (field && field.type !== "file") {
+                if (field.type === "radio") {
+                    var radioToCheck = form.querySelector("input[name='" + key + "'][value='" + formData[key] + "']");
+                    if (radioToCheck) radioToCheck.checked = true;
+                } else {
+                    field.value = formData[key];
+                }
+            }
+        }
+        
+        var alertDiv = document.createElement("div");
+        alertDiv.className = "alert alert-success border-success text-dark py-2 mt-3 fw-bold";
+        alertDiv.innerHTML = "📝 ¡Borrador recuperado! Hemos restaurado los datos que no llegaste a guardar.";
+        form.insertBefore(alertDiv, form.firstChild);
+        
+        // Disparar evento para asegurar que los campos condicionales se actualicen
+        toggleGenderFields();
+    }
+
+    // 2. AUTOGUARDAR: Cada vez que teclea algo, se guarda en tiempo real
+    form.addEventListener("input", function() {
+        var formData = {};
+        var inputs = form.querySelectorAll("input, textarea, select");
+        inputs.forEach(function(input) {
+            if (input.name && input.type !== "file") {
+                if (input.type === "radio") {
+                    if (input.checked) formData[input.name] = input.value;
+                } else {
+                    formData[input.name] = input.value;
+                }
+            }
+        });
+        localStorage.setItem(draftKey, JSON.stringify(formData));
+    });
+
+    // 3. LIMPIAR: Solo borrar el borrador cuando le da click a "Guardar" y se envía
+    form.addEventListener("submit", function() {
+        localStorage.removeItem(draftKey);
+    });
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
