@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Nuevo Control - METABOLISYS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #121212 !important; color: #e0e0e0 !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { background-color: #1e1e1e !important; border: 1px solid #333 !important; color: #ffffff !important; }
+        .form-control, .form-select, textarea { background-color: #2a2a2a !important; border: 1px solid #555 !important; color: #ffffff !important; }
+        .form-control:focus, .form-select:focus, textarea:focus { background-color: #333333 !important; border-color: #ff6b6b !important; color: #ffffff !important; box-shadow: none !important; }
+        .form-control::placeholder, textarea::placeholder { color: #aaaaaa !important; opacity: 1; }
+        option { background-color: #2a2a2a !important; color: #ffffff !important; }
+        label, .form-label { color: #f1f1f1 !important; }
+        .btn-primary { background-color: #e63946; border: none; }
+        .btn-primary:hover { background-color: #d90429; }
+        .nav-pills .nav-link.active { background-color: #e63946; color: #fff; }
+        .nav-pills .nav-link { color: #aaa; background-color: #1e1e1e; border: 1px solid #333; margin-right: 5px; }
+        .section-title { color: #ff6b6b; border-bottom: 1px solid #333; padding-bottom: 5px; margin-top: 10px; margin-bottom: 15px; }
+    </style>
+</head>
+<body class="py-4">
+<div class="container" style="max-width: 900px;">
+    <div class="card p-4 shadow-lg rounded-4">
+        <h2 class="text-center text-danger fw-bold">❤️ METABOLISYS</h2>
+        <h4 class="text-center mb-4">Nuevo Control Clínico para: {{ patient.full_name }}</h4>
+        
+        <form method="POST" action="{{ url_for('new_record', patient_id=patient.id) }}" enctype="multipart/form-data">
+            <div class="mb-4">
+                <label class="form-label fw-bold">Fecha del Control *</label>
+                <input type="date" class="form-control" name="date" required style="max-width: 300px;">
+            </div>
+
+            <div class="card bg-black border-secondary p-3 mb-4">
+                <h6 class="text-warning mb-3">🩺 Datos de la Consulta y Balanza</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Marca de Balanza</label>
+                        <select class="form-select bg-dark text-white border-secondary" name="marca_balanza" id="balanzaSelect" onchange="toggleRenphoFields()">
+                            <option value="Omron">Omron</option>
+                            <option value="Renpho">Renpho</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Presión Arterial (PA)</label>
+                        <input type="text" class="form-control" name="pa" placeholder="Ej. 120/80">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Frecuencia Cardíaca (FC)</label>
+                        <input type="number" class="form-control" name="fc" placeholder="Ej. 72">
+                    </div>
+                </div>
+            </div>
+
+            <ul class="nav nav-pills mb-4" id="recordTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="antropometria-tab" data-bs-toggle="pill" data-bs-target="#antropometria" type="button" role="tab">⚖️ Antropometría</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="laboratorios-tab" data-bs-toggle="pill" data-bs-target="#laboratorios" type="button" role="tab">🧪 Laboratorios</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="estudios-tab" data-bs-toggle="pill" data-bs-target="#estudios" type="button" role="tab">📋 Estudios</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tratamiento-tab" data-bs-toggle="pill" data-bs-target="#tratamiento" type="button" role="tab">💊 Tratamiento / Fotos</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="recordTabContent">
+                <div class="tab-pane fade show active" id="antropometria" role="tabpanel">
+                    <h5 class="section-title">Antropometría y Composición Corporal</h5>
+                    <div class="row g-3">
+                        <div class="col-md-3"><label class="form-label">Altura (cm)</label><input type="number" step="0.1" class="form-control" name="height"></div>
+                        <div class="col-md-3"><label class="form-label">Peso (kg) *</label><input type="number" step="0.1" class="form-control" name="weight" required></div>
+                        <div class="col-md-3"><label class="form-label">Cintura (cm)</label><input type="number" step="0.1" class="form-control" name="waist"></div>
+                        <div class="col-md-3"><label class="form-label">Grasa Corporal (kg)</label><input type="number" step="0.1" class="form-control" name="body_fat_kg"></div>
+                        <div class="col-md-3"><label class="form-label">Grasa Corporal (%)</label><input type="number" step="0.1" class="form-control" name="body_fat_pct"></div>
+                        <div class="col-md-3"><label class="form-label">Grasa Visceral</label><input type="number" step="0.1" class="form-control" name="visceral_fat"></div>
+                        <div class="col-md-3"><label class="form-label">Músculo Esquelético (kg)</label><input type="number" step="0.1" class="form-control" name="muscle_mass_kg"></div>
+                        <div class="col-md-3"><label class="form-label">Músculo Esquelético (%)</label><input type="number" step="0.1" class="form-control" name="muscle_mass_pct"></div>
+                        <div class="col-md-4"><label class="form-label">Metabolismo en Reposo (kcal)</label><input type="number" step="0.1" class="form-control" name="basal_metabolism"></div>
+                    </div>
+
+                    <!-- BLOQUE COMPLETO DE RENPHO BASADO EN LA IMAGEN -->
+                    <div id="renphoFields" style="display: none;" class="mt-4 p-3 border border-warning rounded bg-black">
+                        <h6 class="text-warning mb-3">⚡ Métricas Detalladas de Renpho (Según App)</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4"><label class="form-label">Masa Grasa Corporal (kg)</label><input type="number" step="0.1" class="form-control" name="masa_grasa_kg"></div>
+                            <div class="col-md-4"><label class="form-label">Porcentaje de Músculo (%)</label><input type="number" step="0.1" class="form-control" name="porcentaje_musculo"></div>
+                            <div class="col-md-4"><label class="form-label">Porcentaje Músculo Esquelético (%)</label><input type="number" step="0.1" class="form-control" name="porcentaje_musculo_esqueletico"></div>
+                            
+                            <div class="col-md-4"><label class="form-label">Masa Muscular Esquelética (kg)</label><input type="number" step="0.1" class="form-control" name="masa_muscular_esqueletica"></div>
+                            <div class="col-md-4"><label class="form-label">Porcentaje Óseo (%)</label><input type="number" step="0.1" class="form-control" name="porcentaje_oseo"></div>
+                            <div class="col-md-4"><label class="form-label">Masa Ósea (kg)</label><input type="number" step="0.1" class="form-control" name="masa_osea"></div>
+                            
+                            <div class="col-md-4"><label class="form-label">Porcentaje de Proteína (%)</label><input type="number" step="0.1" class="form-control" name="porcentaje_proteina"></div>
+                            <div class="col-md-4"><label class="form-label">Masa Proteica (kg)</label><input type="number" step="0.1" class="form-control" name="masa_proteica"></div>
+                            <div class="col-md-4"><label class="form-label">Porcentaje Agua Corporal (%)</label><input type="number" step="0.1" class="form-control" name="porcentaje_agua_corporal"></div>
+                            
+                            <div class="col-md-4"><label class="form-label">Masa de Agua Corporal (kg)</label><input type="number" step="0.1" class="form-control" name="masa_agua_corporal"></div>
+                            <div class="col-md-4"><label class="form-label">Peso Corporal Sin Grasa (kg)</label><input type="number" step="0.1" class="form-control" name="peso_sin_grasa"></div>
+                            <div class="col-md-4"><label class="form-label">Grasa Subcutánea (%)</label><input type="number" step="0.1" class="form-control" name="grasa_subcutanea_pct"></div>
+                            
+                            <div class="col-md-4"><label class="form-label">Edad Metabólica</label><input type="number" class="form-control" name="edad_metabolica"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="laboratorios" role="tabpanel">
+                    <h5 class="section-title">Laboratorios y Bioquímica</h5>
+                    <div class="row g-3">
+                        <div class="col-md-3"><label class="form-label text-light">Glicemia</label><input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="glucose"></div>
+                        <div class="col-md-3"><label class="form-label">Insulina</label><input type="number" step="0.1" class="form-control" name="insulin"></div>
+                        <div class="col-md-3"><label class="form-label">HbA1c (%)</label><input type="number" step="0.01" class="form-control" name="hba1c"></div>
+                        <div class="col-md-3"><label class="form-label">Triglicéridos</label><input type="number" step="0.1" class="form-control" name="triglycerides"></div>
+                        <div class="col-md-3"><label class="form-label">Colesterol Total</label><input type="number" step="0.1" class="form-control" name="cholesterol_tot"></div>
+                        <div class="col-md-3"><label class="form-label">HDL</label><input type="number" step="0.1" class="form-control" name="hdl"></div>
+                        <div class="col-md-3"><label class="form-label">LDL</label><input type="number" step="0.1" class="form-control" name="ldl"></div>
+                        <div class="col-md-3"><label class="form-label">VLDL</label><input type="number" step="0.1" class="form-control" name="vldl"></div>
+                        <div class="col-md-3"><label class="form-label">Ácido Úrico</label><input type="number" step="0.1" class="form-control" name="uric_acid"></div>
+                        <div class="col-md-3"><label class="form-label">GOT</label><input type="number" step="0.1" class="form-control" name="got"></div>
+                        <div class="col-md-3"><label class="form-label">GPT</label><input type="number" step="0.1" class="form-control" name="gpt"></div>
+                        <div class="col-md-3"><label class="form-label">FA</label><input type="number" step="0.1" class="form-control" name="fa"></div>
+                        <div class="col-md-4"><label class="form-label">Bili Tot</label><input type="number" step="0.1" class="form-control" name="bili_tot"></div>
+                        <div class="col-md-4"><label class="form-label">Bili Dir</label><input type="number" step="0.1" class="form-control" name="bili_dir"></div>
+                        <div class="col-md-4"><label class="form-label">Bili Ind</label><input type="number" step="0.1" class="form-control" name="bili_ind"></div>
+                        <div class="col-md-6"><label class="form-label">Urea</label><input type="number" step="0.1" class="form-control" name="urea"></div>
+                        <div class="col-md-6"><label class="form-label">Creatinina</label><input type="number" step="0.01" class="form-control" name="creatinine"></div>
+                        <div class="col-md-3"><label class="form-label">TSH</label><input type="number" step="0.01" class="form-control" name="tsh"></div>
+                        <div class="col-md-3"><label class="form-label">T4</label><input type="number" step="0.01" class="form-control" name="t4"></div>
+                        <div class="col-md-3"><label class="form-label">T3</label><input type="number" step="0.01" class="form-control" name="t3"></div>
+                        <div class="col-md-3"><label class="form-label">Anti-TPO</label><input type="number" step="0.01" class="form-control" name="anti_tpo"></div>
+                        <div class="col-md-3"><label class="form-label">Vit D</label><input type="number" step="0.1" class="form-control" name="vit_d"></div>
+                        <div class="col-md-3"><label class="form-label">Vit B12</label><input type="number" step="0.1" class="form-control" name="vit_b12"></div>
+                        <div class="col-md-3"><label class="form-label">Calcio</label><input type="number" step="0.1" class="form-control" name="calcium"></div>
+                        <div class="col-md-3"><label class="form-label">Magnesio</label><input type="number" step="0.1" class="form-control" name="magnesium"></div>
+                        <div class="col-md-6"><label class="form-label">Fósforo</label><input type="number" step="0.1" class="form-control" name="phosphorus"></div>
+                        <div class="col-md-6"><label class="form-label">Cloro</label><input type="number" step="0.1" class="form-control" name="chlorine"></div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="estudios" role="tabpanel">
+                    <h5 class="section-title">Estudios Complementarios</h5>
+                    <div class="row g-3">
+                        <div class="col-md-12"><label class="form-label">Ecografía Abdominal</label><input type="text" class="form-control" name="ecografia_abdominal"></div>
+                        <div class="col-md-12"><label class="form-label">Ecografía Tiroidea</label><input type="text" class="form-control" name="ecografia_tiroidea"></div>
+                        <div class="col-md-12"><label class="form-label">Otros Estudios</label><input type="text" class="form-control" name="otros_estudios"></div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tratamiento" role="tabpanel">
+                    <h5 class="section-title">Indicaciones y Tratamiento</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12"><label class="form-label">Indicaciones Generales</label><textarea class="form-control" name="indicaciones_tratamiento" rows="2"></textarea></div>
+                        <div class="col-md-12"><label class="form-label">Medicación (Receta)</label><textarea class="form-control" name="medications" rows="2"></textarea></div>
+                        <div class="col-md-6"><label class="form-label">Próximo Control</label><input type="text" class="form-control" name="proximo_control"></div>
+                        <div class="col-md-6"><label class="form-label">Conducta Médica</label><textarea class="form-control" name="conducta_medica" rows="2"></textarea></div>
+                    </div>
+
+                    <div class="card bg-black border-secondary p-3">
+                        <h6 class="text-danger mb-3">📸 Adjuntar Foto de Consulta</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Categoría</label>
+                                <select class="form-select bg-dark text-white border-secondary" name="photo_category">
+                                    <option value="Antes">Foto Inicial (Antes)</option>
+                                    <option value="Evolución">Control / Evolución</option>
+                                    <option value="Lesión en Piel">Lesión en Piel</option>
+                                    <option value="Después">Resultado Final (Después)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">Seleccionar Imagen</label>
+                                <input type="file" class="form-control bg-dark text-white border-secondary" name="photo" accept="image/*">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Notas de la Foto</label>
+                                <input type="text" class="form-control bg-dark text-white border-secondary" name="photo_notes" placeholder="Ej. Mejora...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4 pt-3 border-top border-secondary">
+                <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary px-4">Guardar Control</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleRenphoFields() {
+    const balanza = document.getElementById('balanzaSelect').value;
+    const renphoFields = document.getElementById('renphoFields');
+    if (balanza === 'Renpho') {
+        renphoFields.style.display = 'block';
+    } else {
+        renphoFields.style.display = 'none';
+    }
+}
+toggleRenphoFields();
+
+document.addEventListener("DOMContentLoaded", function() {
+    var form = document.querySelector("form");
+    if(form) {
+        // 1. Mostrar campos obligatorios ocultos en pestañas
+        form.addEventListener("invalid", function(e) {
+            var invalidField = e.target;
+            var pane = invalidField.closest(".tab-pane");
+            if (pane) {
+                var tabButton = document.querySelector("[data-bs-target='#" + pane.id + "']");
+                if (tabButton) {
+                    tabButton.click(); // Cambia a la pestaña oculta
+                    setTimeout(function() { invalidField.focus(); }, 100);
+                }
+            }
+        }, true);
+
+        // 2. Prevenir múltiples clics y mostrar que está cargando
+        form.addEventListener("submit", function(e) {
+            var btn = form.querySelector("button[type='submit']");
+            if(btn) {
+                btn.innerHTML = "⏳ Guardando, por favor espere...";
+                btn.classList.add("disabled");
+                btn.style.pointerEvents = "none";
+            }
+        });
+    }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
