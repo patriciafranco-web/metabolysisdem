@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h3 class="text-white fw-bold m-0">
+        <span style="color: #9d4edd;">👥</span> Directorio General de Pacientes
+    </h3>
+    <div>
+        <a href="{{ url_for('export_excel') }}" class="btn btn-info btn-sm fw-bold text-white me-2" style="background-color: #2a9d8f; border: none;">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Exportar Todo (Investigación)
+        </a>
+        <a href="{{ url_for('new_patient') }}" class="btn btn-danger btn-sm fw-bold" style="background-color: #ef233c; border: none;">
+            <i class="bi bi-plus-lg"></i> Nuevo Paciente
+        </a>
+    </div>
+</div>
+
+<!-- Barra de Búsqueda y Filtros -->
+<div class="card p-3 mb-4 shadow-sm" style="background-color: #1e1e1e; border: 1px solid #333;">
+    <form method="GET" action="{{ url_for('index') }}" class="row g-2 align-items-center">
+        <div class="col-md-5">
+            <input type="text" class="form-control" name="q" placeholder="Buscar por Nombre o CI..." value="{{ search_query }}" style="background-color: #2a2a2a; border: 1px solid #444; color: #fff;">
+        </div>
+        <div class="col-md-4">
+            <select class="form-select" name="sanatorio" style="background-color: #2a2a2a; border: 1px solid #444; color: #fff;">
+                <option value="">-- Todos los Sanatorios --</option>
+                {% for s in sanatorios %}
+                <option value="{{ s }}" {% if current_sanatorio == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn w-100" style="background-color: #2a2a2a; color: #fff; border: 1px solid #444;">🔍 Filtrar / Buscar</button>
+        </div>
+    </form>
+</div>
+
+<!-- Tabla de Pacientes -->
+<div class="card p-3 shadow-sm" style="background-color: #1e1e1e; border: 1px solid #333;">
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-hover align-middle mb-0" style="border-color: #333;">
+            <thead>
+                <tr>
+                    <th>Nombre Completo</th>
+                    <th>CI</th>
+                    <th>Sanatorio</th>
+                    <th>Patología Principal</th>
+                    <th>Edad / Género</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if patients %}
+                    {% for p in patients %}
+                    <tr>
+                        <td class="fw-bold text-light">{{ p.full_name }}</td>
+                        <td>{{ p.ci }}</td>
+                        <td>{{ p.sanatorio }}</td>
+                        <td>{{ p.pathology_type or 'Diabetes / Obesidad' }}</td>
+                        <td>{{ p.age }} años / {{ p.gender }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('patient_detail', id=p.id) }}" class="btn btn-outline-light btn-sm">Ver Ficha</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">No se encontraron pacientes registrados con esos criterios.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
