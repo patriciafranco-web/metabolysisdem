@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary btn-sm">⬅️ Volver al Perfil</a>
+        <h2 class="text-warning fw-bold m-0">✏️ Editar Paciente</h2>
+    </div>
+
+    <div class="card p-4 shadow-sm" style="background-color: #1e1e1e; border: 1px solid #333;">
+        <form method="POST" action="{{ url_for('edit_patient', id=patient.id) }}">
+            <h5 class="text-danger border-bottom border-secondary pb-2">Datos Personales</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label text-light">Nombre Completo *</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="full_name" value="{{ patient.full_name }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Cédula de Identidad *</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="ci" value="{{ patient.ci }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-light">Edad *</label>
+                    <input type="number" class="form-control bg-dark text-white border-secondary" name="age" value="{{ patient.age }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Género *</label>
+                    <select class="form-select bg-dark text-white border-secondary" name="gender" required>
+                        <option value="Femenino" {% if patient.gender == 'Femenino' %}selected{% endif %}>Femenino</option>
+                        <option value="Masculino" {% if patient.gender == 'Masculino' %}selected{% endif %}>Masculino</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Fecha de Nacimiento</label>
+                    <input type="date" class="form-control bg-dark text-white border-secondary" name="birth_date" value="{{ patient.birth_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Teléfono</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="phone" value="{{ patient.phone }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Sanatorio / Clínica *</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="sanatorio" value="{{ patient.sanatorio }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Seguro Médico</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="seguro_medico" value="{{ patient.seguro_medico }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Procedencia</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="procedencia" value="{{ patient.procedencia }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Profesión / Ocupación</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="profession" value="{{ patient.profession }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Inicio de Tratamiento</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="fecha_inicio_tratamiento" value="{{ patient.fecha_inicio_tratamiento }}">
+                </div>
+            </div>
+
+            <h5 class="text-danger border-bottom border-secondary pb-2">Datos Clínicos y Antecedentes</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-8">
+                    <label class="form-label text-light">Patología Principal</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="pathology_type" value="{{ patient.pathology_type }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Años de Evolución</label>
+                    <input type="number" class="form-control bg-dark text-white border-secondary" name="evolution_years" value="{{ patient.evolution_years }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Antecedentes Familiares</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="antecedentes_familiares" rows="2">{{ patient.antecedentes_familiares }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Antecedentes Personales</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="antecedentes_personales" rows="2">{{ patient.antecedentes_personales }}</textarea>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label text-light">Comorbilidades</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="comorbidities" value="{{ patient.comorbidities }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Tratamiento Base</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="tratamiento_base" rows="2">{{ patient.tratamiento_base }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Historial de Cirugías</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="historial_cirugias" rows="2">{{ patient.historial_cirugias }}</textarea>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label text-light">Alergia a Fármacos</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="alergia_farmacos" value="{{ patient.alergia_farmacos }}">
+                </div>
+            </div>
+
+            <h5 class="text-danger border-bottom border-secondary pb-2">Ginecológicos (Solo Mujeres)</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <label class="form-label text-light">Cantidad de Hijos</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="cant_hijos" value="{{ patient.cant_hijos }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Menarca</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="menarca" value="{{ patient.menarca }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Menstruación Regular</label>
+                    <select class="form-select bg-dark text-white border-secondary" name="menstruacion_regular">
+                        <option value="">Seleccione...</option>
+                        <option value="Sí" {% if patient.menstruacion_regular == 'Sí' %}selected{% endif %}>Sí</option>
+                        <option value="No" {% if patient.menstruacion_regular == 'No' %}selected{% endif %}>No</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Anticonceptivos</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="anticonceptivos" value="{{ patient.anticonceptivos }}">
+                </div>
+            </div>
+
+            <h5 class="text-danger border-bottom border-secondary pb-2">Hábitos</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label text-light">Calidad del Sueño</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="calidad_sueno" value="{{ patient.calidad_sueno }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Actividad Física</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="actividad_fisica" value="{{ patient.actividad_fisica }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Fuma / Alcohol</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="fuma_alcohol" value="{{ patient.fuma_alcohol }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Veces que come al día</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="veces_come" value="{{ patient.veces_come }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Gaseosas / Jugos</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="consume_gaseosa_jugo" value="{{ patient.consume_gaseosa_jugo }}">
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-warning fw-bold text-dark w-100 py-3 mt-3 fs-5">💾 Guardar Cambios del Paciente</button>
+        </form>
+    </div>
+</div>
+
+<script>
+// --- SISTEMA DE AUTOGUARDADO (BORRADOR AUTOMÁTICO) ---
+document.addEventListener("DOMContentLoaded", function() {
+    var form = document.querySelector("form");
+    if (!form) return;
+
+    var draftKey = "draft_" + window.location.pathname;
+
+    // 1. RECUPERAR: Si hay un borrador guardado, rellenar el formulario
+    var savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+        var formData = JSON.parse(savedDraft);
+        for (var key in formData) {
+            var field = form.querySelector("[name='" + key + "']");
+            if (field && field.type !== "file") {
+                if (field.type === "radio") {
+                    var radioToCheck = form.querySelector("input[name='" + key + "'][value='" + formData[key] + "']");
+                    if (radioToCheck) radioToCheck.checked = true;
+                } else {
+                    field.value = formData[key];
+                }
+            }
+        }
+        
+        var alertDiv = document.createElement("div");
+        alertDiv.className = "alert alert-success border-success text-dark py-2 mt-3 fw-bold";
+        alertDiv.innerHTML = "📝 ¡Borrador recuperado! Hemos restaurado los datos que no llegaste a guardar.";
+        form.insertBefore(alertDiv, form.firstChild);
+    }
+
+    // 2. AUTOGUARDAR: Cada vez que teclea algo, se guarda en tiempo real
+    form.addEventListener("input", function() {
+        var formData = {};
+        var inputs = form.querySelectorAll("input, textarea, select");
+        inputs.forEach(function(input) {
+            if (input.name && input.type !== "file") {
+                if (input.type === "radio") {
+                    if (input.checked) formData[input.name] = input.value;
+                } else {
+                    formData[input.name] = input.value;
+                }
+            }
+        });
+        localStorage.setItem(draftKey, JSON.stringify(formData));
+    });
+
+    // 3. LIMPIAR Y BLOQUEAR BOTÓN: Borra el borrador al guardar y muestra aviso de carga
+    form.addEventListener("submit", function() {
+        localStorage.removeItem(draftKey);
+        
+        var btn = form.querySelector("button[type='submit']");
+        if(btn) {
+            btn.innerHTML = "⏳ Guardando, por favor espere...";
+            btn.classList.add("disabled");
+            btn.style.pointerEvents = "none";
+        }
+    });
+});
+</script>
+{% endblock %}
