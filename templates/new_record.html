@@ -83,7 +83,7 @@
                         <div class="col-md-4"><label class="form-label">Metabolismo en Reposo (kcal)</label><input type="number" step="0.1" class="form-control" name="basal_metabolism"></div>
                     </div>
 
-                    <!-- BLOQUE COMPLETO DE RENPHO BASADO EN LA IMAGEN -->
+                    <!-- BLOQUE COMPLETO DE RENPHO -->
                     <div id="renphoFields" style="display: none;" class="mt-4 p-3 border border-warning rounded bg-black">
                         <h6 class="text-warning mb-3">⚡ Métricas Detalladas de Renpho (Según App)</h6>
                         <div class="row g-3">
@@ -138,6 +138,12 @@
                         <div class="col-md-3"><label class="form-label">Magnesio</label><input type="number" step="0.1" class="form-control" name="magnesium"></div>
                         <div class="col-md-6"><label class="form-label">Fósforo</label><input type="number" step="0.1" class="form-control" name="phosphorus"></div>
                         <div class="col-md-6"><label class="form-label">Cloro</label><input type="number" step="0.1" class="form-control" name="chlorine"></div>
+                        
+                        <!-- NUEVO CAMPO: OTROS LABORATORIOS -->
+                        <div class="col-md-12 mt-3">
+                            <label class="form-label text-warning fw-bold">🧪 Otros Laboratorios / Valores Adicionales</label>
+                            <textarea class="form-control" name="otros_laboratorios" rows="2" placeholder="Ej. Ferritina, Prolactina, PSA, etc."></textarea>
+                        </div>
                     </div>
                 </div>
 
@@ -207,20 +213,18 @@ toggleRenphoFields();
 document.addEventListener("DOMContentLoaded", function() {
     var form = document.querySelector("form");
     if(form) {
-        // 1. Mostrar campos obligatorios ocultos en pestañas
         form.addEventListener("invalid", function(e) {
             var invalidField = e.target;
             var pane = invalidField.closest(".tab-pane");
             if (pane) {
                 var tabButton = document.querySelector("[data-bs-target='#" + pane.id + "']");
                 if (tabButton) {
-                    tabButton.click(); // Cambia a la pestaña oculta
+                    tabButton.click();
                     setTimeout(function() { invalidField.focus(); }, 100);
                 }
             }
         }, true);
 
-        // 2. Prevenir múltiples clics y mostrar que está cargando
         form.addEventListener("submit", function(e) {
             var btn = form.querySelector("button[type='submit']");
             if(btn) {
