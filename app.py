@@ -12,6 +12,12 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
+# Importación opcional para leer archivos de Word (.docx)
+try:
+    import docx
+except ImportError:
+    docx = None
+
 app = Flask(__name__)
 
 # --- CONFIGURACIÓN DE DISCO SEGURO PARA RENDER ---
@@ -22,7 +28,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'metabolisys_secreto_seguro_2026'
 
 UPLOAD_FOLDER = os.path.join(DATA_DIR, 'uploads')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'docx'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 if not os.path.exists(UPLOAD_FOLDER):
@@ -165,7 +171,7 @@ class MedicalRecord(db.Model):
     phosphorus = db.Column(db.Float)
     chlorine = db.Column(db.Float)
     
-    otros_laboratorios = db.Column(db.Text)  # <--- CAMPO DE OTROS LABORATORIOS
+    otros_laboratorios = db.Column(db.Text)
 
     ecografia_abdominal = db.Column(db.Text)
     ecografia_tiroidea = db.Column(db.Text)
@@ -261,7 +267,6 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
         
-    # Creación automática de la cuenta de prueba para la Dra. Alejandra Müller
     dra_muller = User.query.filter_by(username='alejandra.muller').first()
     ten_days_later = (date.today() + timedelta(days=10)).strftime('%Y-%m-%d')
     if not dra_muller:
@@ -445,6 +450,37 @@ def patient_detail(id):
     hba1c_data = [r.hba1c for r in valid_records if r.hba1c]
     weight_data = [r.weight for r in valid_records if r.weight]
     return render_template('patient_detail.html', patient=patient, valid_records=valid_records, dates=dates, hba1c_data=hba1c_data, weight_data=weight_data)
+
+# --- RUTA PARA SUBIR Y PROCESAR AUTOMÁTICAMENTE ARCHIVO WORD (.docx) ---
+@app.route('/patient/import_docx/<int:patient_id>', methods=['GET', 'POST'])
+@login_required
+def import_docx(patient_id):
+    patient = Patient.query.get_or_404(patient_id)
+    if request.method == 'POST':
+        if 'word_file' in request.files:
+            file = request.files['word_file']
+            if file and file.filename.endswith('.docx') and docx is not None:
+                filename = secure_filename(f"historial_{patient.id}_{file.filename}")
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                
+                # Leer el contenido del documento Word
+                doc = docx.Document(filepath)
+                full_text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+                
+                if full_text:
+                    today_str = date.today().strftime('%Y-%m-%d')
+                    record = MedicalRecord(
+                        patient_id=patient.id,
+                        date=today_str,
+                        notes=full_text,
+                        indicaciones_tratamiento="[Importado automáticamente desde documento Word]"
+                    )
+                    db.session.add(record)
+                    db.session.commit()
+                    
+        return redirect(url_for('patient_detail', id=patient.id))
+    return render_template('import_docx.html', patient=patient)
 
 @app.route('/record/new/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
