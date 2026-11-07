@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5" style="max-width: 700px;">
+    <div class="card p-4 shadow-lg rounded-4" style="background-color: #1e1e1e; border: 1px solid #333;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="text-danger fw-bold m-0"><i class="bi bi-file-earmark-word-fill"></i> Importar Historial de Word</h3>
+            <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary btn-sm">⬅️ Volver</a>
+        </div>
+
+        <p class="text-light">
+            Sube el archivo de Word (<code>.docx</code>) correspondiente al historial en Google Drive de la paciente 
+            <strong class="text-warning">{{ patient.full_name }}</strong>. El sistema extraerá automáticamente todo el texto y lo volcará en su ficha clínica.
+        </p>
+
+        <form method="POST" enctype="multipart/form-data" class="mt-3">
+            <div class="mb-4">
+                <label class="form-label text-light fw-bold">Seleccionar Archivo .docx</label>
+                <input type="file" class="form-control bg-dark text-white border-secondary py-2" name="word_file" accept=".docx" required>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-danger py-3 fw-bold fs-5">
+                    <i class="bi bi-upload"></i> Procesar e Importar Historial
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
