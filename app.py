@@ -1,12 +1,12 @@
+from datetime import date, datetime, timedelta
+import io
+import csv
+import os
 from flask import Flask, render_template, request, redirect, url_for, Response, send_file, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
-import io
-import csv
-import os
-from datetime import date
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
@@ -61,6 +61,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.Text, nullable=False)
+    expiry_date = db.Column(db.String(20), nullable=True)
 
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -164,6 +165,8 @@ class MedicalRecord(db.Model):
     phosphorus = db.Column(db.Float)
     chlorine = db.Column(db.Float)
     
+    otros_laboratorios = db.Column(db.Text)  # <--- CAMPO DE OTROS LABORATORIOS
+
     ecografia_abdominal = db.Column(db.Text)
     ecografia_tiroidea = db.Column(db.Text)
     otros_estudios = db.Column(db.Text)
@@ -254,15 +257,39 @@ with app.app_context():
     admin_user = User.query.filter_by(username='admin').first()
     if not admin_user:
         hashed_pw = generate_password_hash('metabosys2026', method='pbkdf2:sha256')
-        admin = User(username='admin', password_hash=hashed_pw)
+        admin = User(username='admin', password_hash=hashed_pw, expiry_date=None)
         db.session.add(admin)
         db.session.commit()
+        
+    # Creación automática de la cuenta de prueba para la Dra. Alejandra Müller
+    dra_muller = User.query.filter_by(username='alejandra.muller').first()
+    ten_days_later = (date.today() + timedelta(days=10)).strftime('%Y-%m-%d')
+    if not dra_muller:
+        hashed_pw = generate_password_hash('dra12345', method='pbkdf2:sha256')
+        dra = User(username='alejandra.muller', password_hash=hashed_pw, expiry_date=ten_days_later)
+        db.session.add(dra)
+        db.session.commit()
+    else:
+        if not dra_muller.expiry_date:
+            dra_muller.expiry_date = ten_days_later
+            db.session.commit()
 
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             return redirect(url_for('login'))
+        
+        user = User.query.get(session.get('user_id'))
+        if user and user.expiry_date:
+            try:
+                exp_date = datetime.strptime(user.expiry_date, '%Y-%m-%d').date()
+                if date.today() > exp_date:
+                    session.clear()
+                    return render_template('login.html', error='Su periodo de prueba de 10 días ha expirado.')
+            except:
+                pass
+
         return f(*args, **kwargs)
     return decorated_function
 
@@ -273,9 +300,24 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         user = User.query.filter_by(username=username).first()
+        
         if user and check_password_hash(user.password_hash, password):
+            if user.expiry_date:
+                try:
+                    exp_date = datetime.strptime(user.expiry_date, '%Y-%m-%d').date()
+                    if date.today() > exp_date:
+                        return render_template('login.html', error='Su periodo de prueba de 10 días ha expirado.')
+                except:
+                    pass
+
             session['user_id'] = user.id
             session['username'] = username
+            
+            if username == 'alejandra.muller':
+                session['user_name'] = 'Dra. Alejandra Müller'
+            else:
+                session['user_name'] = 'Administrador'
+                
             return redirect(url_for('index'))
         else:
             error = 'Usuario o contraseña incorrectos.'
@@ -464,6 +506,7 @@ def new_record(patient_id):
             magnesium=parse_float(request.form.get('magnesium')),
             phosphorus=parse_float(request.form.get('phosphorus')),
             chlorine=parse_float(request.form.get('chlorine')),
+            otros_laboratorios=format_text(request.form.get('otros_laboratorios')),
             ecografia_abdominal=request.form.get('ecografia_abdominal'),
             ecografia_tiroidea=request.form.get('ecografia_tiroidea'),
             otros_estudios=request.form.get('otros_estudios'),
@@ -549,6 +592,7 @@ def edit_record(id):
         record.magnesium = parse_float(request.form.get('magnesium'))
         record.phosphorus = parse_float(request.form.get('phosphorus'))
         record.chlorine = parse_float(request.form.get('chlorine'))
+        record.otros_laboratorios = format_text(request.form.get('otros_laboratorios'))
         record.ecografia_abdominal = request.form.get('ecografia_abdominal')
         record.ecografia_tiroidea = request.form.get('ecografia_tiroidea')
         record.otros_estudios = request.form.get('otros_estudios')
@@ -626,7 +670,7 @@ def export_excel():
         'Músculo (kg)', 'Músculo Delta (kg)', 'Músculo (%)', 'Metabolismo Basal', 'Masa Grasa (kg)', '% Músculo', '% Músculo Esquelético', 'Masa Músculo Esquelético (kg)', '% Óseo', 'Masa Ósea (kg)', '% Proteína', 'Masa Proteica (kg)', '% Agua Corporal', 'Masa Agua Corporal (kg)', 'Peso Sin Grasa (kg)', 'Grasa Subcutánea (%)', 'Edad Metabólica', 'Cintura (cm)', 'Cintura Perdida (cm)', 'Glicemia', 'Insulina', 'HbA1c (%)', 
         'Triglicéridos', 'Col. Tot', 'HDL', 'LDL', 'VLDL', 'Ácido Úrico', 'GOT', 'GPT', 'FA', 'Bili Tot', 'Bili Dir', 
         'Bili Ind', 'Urea', 'Creatinina', 'TSH', 'T4', 'T3', 'Anti-TPO', 'Vit D', 'Vit B12', 'Calcio', 'Magnesio', 
-        'Fósforo', 'Cloro', 'Eco Abdominal', 'Eco Tiroidea', 'Otros Estudios', 'Indicaciones / Tratamiento', 'Medicación', 
+        'Fósforo', 'Cloro', 'Otros Laboratorios', 'Eco Abdominal', 'Eco Tiroidea', 'Otros Estudios', 'Indicaciones / Tratamiento', 'Medicación', 
         'Próximo Control', 'HOMA-IR', 'Cintura/Altura', 'Conducta Médica'
     ])
     patients = Patient.query.all()
@@ -641,11 +685,11 @@ def export_excel():
                     r.basal_metabolism, r.masa_grasa_kg, r.porcentaje_musculo, r.porcentaje_musculo_esqueletico, r.masa_muscular_esqueletica, r.porcentaje_oseo, r.masa_osea, r.porcentaje_proteina, r.masa_proteica, r.porcentaje_agua_corporal, r.masa_agua_corporal, r.peso_sin_grasa, r.grasa_subcutanea_pct, r.edad_metabolica, r.waist, r.waist_lost, r.glucose, r.insulin, r.hba1c, r.triglycerides, r.cholesterol_tot, r.hdl, r.ldl,
                     r.vldl, r.uric_acid, r.got, r.gpt, r.fa, r.bili_tot, r.bili_dir, r.bili_ind, r.urea, r.creatinine,
                     r.tsh, r.t4, r.t3, r.anti_tpo, r.vit_d, r.vit_b12, r.calcium, r.magnesium, r.phosphorus, r.chlorine,
-                    r.ecografia_abdominal, r.ecografia_tiroidea, r.otros_estudios, r.indicaciones_tratamiento, r.medications,
+                    r.otros_laboratorios, r.ecografia_abdominal, r.ecografia_tiroidea, r.otros_estudios, r.indicaciones_tratamiento, r.medications,
                     r.proximo_control, r.homair, r.ica_value, r.conducta_medica
                 ])
         else:
-            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
     output.seek(0)
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=matriz_metabolica_pacientes.csv"})
 
