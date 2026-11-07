@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container pb-5">
+<div class="container pb-5" style="max-width: 900px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary btn-sm">⬅️ Cancelar</a>
         <h2 class="text-warning fw-bold m-0">✏️ Editar Consulta</h2>
@@ -10,122 +10,127 @@
         <form method="POST" action="{{ url_for('edit_record', id=record.id) }}">
             
             <div class="row g-3 mb-4">
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label class="form-label text-light">Fecha de Control *</label>
                     <input type="date" class="form-control bg-dark text-white border-secondary" name="date" value="{{ record.date }}" required>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label class="form-label text-light">Balanza Utilizada</label>
-                    <input type="text" class="form-control bg-dark text-white border-secondary" name="marca_balanza" value="{{ record.marca_balanza }}">
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="marca_balanza" value="{{ record.marca_balanza or '' }}">
                 </div>
             </div>
 
             <h5 class="text-danger border-bottom border-secondary pb-2">Antropometría Principal</h5>
             <div class="row g-3 mb-4">
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">Altura (cm)</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="height" value="{{ record.height }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="height" value="{{ record.height or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">Peso (kg) *</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary text-warning fw-bold" name="weight" value="{{ record.weight }}" required>
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary text-warning fw-bold" name="weight" value="{{ record.weight or '' }}" required>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">Cintura (cm)</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="waist" value="{{ record.waist }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="waist" value="{{ record.waist or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">Grasa Corp (%)</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="body_fat_pct" value="{{ record.body_fat_pct }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="body_fat_pct" value="{{ record.body_fat_pct or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">Grasa Corp (kg)</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="body_fat_kg" value="{{ record.body_fat_kg }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="body_fat_kg" value="{{ record.body_fat_kg or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">Grasa Visceral</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="visceral_fat" value="{{ record.visceral_fat }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="visceral_fat" value="{{ record.visceral_fat or '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-light">Músculo (kg)</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="muscle_mass_kg" value="{{ record.muscle_mass_kg }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="muscle_mass_kg" value="{{ record.muscle_mass_kg or '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-light">Metabolismo (kcal)</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="basal_metabolism" value="{{ record.basal_metabolism }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="basal_metabolism" value="{{ record.basal_metabolism or '' }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <label class="form-label text-light">PA (ej. 120/80)</label>
-                    <input type="text" class="form-control bg-dark text-white border-secondary" name="pa" value="{{ record.pa }}">
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="pa" value="{{ record.pa or '' }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <label class="form-label text-light">Frec. Cardíaca</label>
-                    <input type="number" class="form-control bg-dark text-white border-secondary" name="fc" value="{{ record.fc }}">
+                    <input type="number" class="form-control bg-dark text-white border-secondary" name="fc" value="{{ record.fc or '' }}">
                 </div>
             </div>
 
-            <!-- SECCIÓN NUEVA QUE FALTABA: LABORATORIOS -->
             <h5 class="text-danger border-bottom border-secondary pb-2 mt-4">Laboratorios y Bioquímica</h5>
             <div class="row g-3 mb-4">
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">Glicemia</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="glucose" value="{{ record.glucose }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="glucose" value="{{ record.glucose or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">Insulina</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="insulin" value="{{ record.insulin }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="insulin" value="{{ record.insulin or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">HbA1c (%)</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="hba1c" value="{{ record.hba1c }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="hba1c" value="{{ record.hba1c or '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-light">Triglicéridos</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="triglycerides" value="{{ record.triglycerides }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="triglycerides" value="{{ record.triglycerides or '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-light">Colesterol Total</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="cholesterol_tot" value="{{ record.cholesterol_tot }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="cholesterol_tot" value="{{ record.cholesterol_tot or '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-light">HDL</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="hdl" value="{{ record.hdl }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="hdl" value="{{ record.hdl or '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-light">LDL</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="ldl" value="{{ record.ldl }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="ldl" value="{{ record.ldl or '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-light">VLDL</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="vldl" value="{{ record.vldl }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="vldl" value="{{ record.vldl or '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-light">Ácido Úrico</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="uric_acid" value="{{ record.uric_acid }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="uric_acid" value="{{ record.uric_acid or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">GOT</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="got" value="{{ record.got }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="got" value="{{ record.got or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">GPT</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="gpt" value="{{ record.gpt }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="gpt" value="{{ record.gpt or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">FA</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="fa" value="{{ record.fa }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="fa" value="{{ record.fa or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">TSH</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="tsh" value="{{ record.tsh }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="tsh" value="{{ record.tsh or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">T4</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="t4" value="{{ record.t4 }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="t4" value="{{ record.t4 or '' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label text-light">T3</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="t3" value="{{ record.t3 }}">
+                    <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="t3" value="{{ record.t3 or '' }}">
+                </div>
+                
+                <!-- NUEVO CAMPO: OTROS LABORATORIOS EN EDICIÓN -->
+                <div class="col-md-12 mt-3">
+                    <label class="form-label text-warning fw-bold">🧪 Otros Laboratorios / Valores Adicionales</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="otros_laboratorios" rows="2" placeholder="Ej. Ferritina, Prolactina, PSA, etc.">{{ record.otros_laboratorios or '' }}</textarea>
                 </div>
             </div>
 
