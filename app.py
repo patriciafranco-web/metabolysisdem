@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 import io
 import csv
 import os
-from flask import Flask, render_template, request, redirect, url_for, Response, send_file, session, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, Response, send_file, session, send_from_directory, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -401,35 +401,39 @@ def edit_patient(id):
         if existing and existing.id != patient.id:
             return f"<script>alert('❌ ERROR: La Cédula {ci_input} ya le pertenece a otro paciente en el sistema.'); window.history.back();</script>"
         
-        patient.full_name = format_text(request.form.get('full_name', ''))
-        patient.ci = ci_input
-        patient.birth_date = request.form.get('birth_date')
-        patient.age = parse_int(request.form.get('age'))
-        patient.gender = request.form.get('gender')
-        patient.phone = request.form.get('phone')
-        patient.sanatorio = format_text(request.form.get('sanatorio', ''))
-        patient.procedencia = format_text(request.form.get('procedencia'))
-        patient.profession = format_text(request.form.get('profession'))
-        patient.pathology_type = format_text(request.form.get('pathology_type'))
-        patient.evolution_years = parse_int(request.form.get('evolution_years'))
-        patient.seguro_medico = format_text(request.form.get('seguro_medico'))
-        patient.fecha_inicio_tratamiento = format_text(request.form.get('fecha_inicio_tratamiento'))
-        patient.antecedentes_familiares = format_text(request.form.get('antecedentes_familiares'))
-        patient.antecedentes_personales = format_text(request.form.get('antecedentes_personales'))
-        patient.comorbidities = format_text(request.form.get('comorbidities'))
-        patient.tratamiento_base = format_text(request.form.get('tratamiento_base'))
-        patient.historial_cirugias = format_text(request.form.get('historial_cirugias'))
-        patient.alergia_farmacos = format_text(request.form.get('alergia_farmacos'))
-        patient.cant_hijos = request.form.get('cant_hijos')
-        patient.menarca = format_text(request.form.get('menarca'))
-        patient.menstruacion_regular = format_text(request.form.get('menstruacion_regular'))
-        patient.anticonceptivos = format_text(request.form.get('anticonceptivos'))
-        patient.checklist_glp1_notas = format_text(request.form.get('checklist_glp1_notas'))
-        patient.calidad_sueno = format_text(request.form.get('calidad_sueno'))
-        patient.actividad_fisica = format_text(request.form.get('actividad_fisica'))
-        patient.fuma_alcohol = format_text(request.form.get('fuma_alcohol'))
-        patient.veces_come = format_text(request.form.get('veces_come'))
-        patient.consume_gaseosa_jugo = format_text(request.form.get('consume_gaseosa_jugo'))
+        # Actualización BLINDADA: Si el campo viene con datos se actualiza, si viene vacío se preserva el anterior
+        patient.full_name = format_text(request.form.get('full_name', patient.full_name))
+        patient.ci = ci_input or patient.ci
+        patient.birth_date = request.form.get('birth_date') or patient.birth_date
+        patient.age = parse_int(request.form.get('age')) or patient.age
+        patient.gender = request.form.get('gender') or patient.gender
+        patient.phone = request.form.get('phone') or patient.phone
+        patient.sanatorio = format_text(request.form.get('sanatorio', patient.sanatorio))
+        patient.procedencia = format_text(request.form.get('procedencia')) or patient.procedencia
+        patient.profession = format_text(request.form.get('profession')) or patient.profession
+        patient.pathology_type = format_text(request.form.get('pathology_type')) or patient.pathology_type
+        patient.evolution_years = parse_int(request.form.get('evolution_years')) or patient.evolution_years
+        patient.seguro_medico = format_text(request.form.get('seguro_medico')) or patient.seguro_medico
+        patient.fecha_inicio_tratamiento = format_text(request.form.get('fecha_inicio_tratamiento')) or patient.fecha_inicio_tratamiento
+        
+        patient.antecedentes_familiares = format_text(request.form.get('antecedentes_familiares')) or patient.antecedentes_familiares
+        patient.antecedentes_personales = format_text(request.form.get('antecedentes_personales')) or patient.antecedentes_personales
+        patient.comorbidities = format_text(request.form.get('comorbidities')) or patient.comorbidities
+        patient.tratamiento_base = format_text(request.form.get('tratamiento_base')) or patient.tratamiento_base
+        patient.historial_cirugias = format_text(request.form.get('historial_cirugias')) or patient.historial_cirugias
+        patient.alergia_farmacos = format_text(request.form.get('alergia_farmacos')) or patient.alergia_farmacos
+        
+        patient.cant_hijos = request.form.get('cant_hijos') or patient.cant_hijos
+        patient.menarca = format_text(request.form.get('menarca')) or patient.menarca
+        patient.menstruacion_regular = request.form.get('menstruacion_regular') or patient.menstruacion_regular
+        patient.anticonceptivos = format_text(request.form.get('anticonceptivos')) or patient.anticonceptivos
+        patient.checklist_glp1_notas = format_text(request.form.get('checklist_glp1_notas')) or patient.checklist_glp1_notas
+        patient.calidad_sueno = format_text(request.form.get('calidad_sueno')) or patient.calidad_sueno
+        patient.actividad_fisica = format_text(request.form.get('actividad_fisica')) or patient.actividad_fisica
+        patient.fuma_alcohol = format_text(request.form.get('fuma_alcohol')) or patient.fuma_alcohol
+        patient.veces_come = format_text(request.form.get('veces_come')) or patient.veces_come
+        patient.consume_gaseosa_jugo = format_text(request.form.get('consume_gaseosa_jugo')) or patient.consume_gaseosa_jugo
+
         db.session.commit()
         return redirect(url_for('patient_detail', id=patient.id))
     return render_template('edit_patient.html', patient=patient)
@@ -452,36 +456,48 @@ def patient_detail(id):
     weight_data = [r.weight for r in valid_records if r.weight]
     return render_template('patient_detail.html', patient=patient, valid_records=valid_records, dates=dates, hba1c_data=hba1c_data, weight_data=weight_data)
 
-# --- RUTA PARA SUBIR Y PROCESAR AUTOMÁTICAMENTE ARCHIVO WORD (.docx) ---
+# --- RUTA PARA SUBIR Y PREVISUALIZAR ARCHIVO WORD (.docx) ANTES DE GUARDAR ---
 @app.route('/patient/import_docx/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
 def import_docx(patient_id):
     patient = Patient.query.get_or_404(patient_id)
+    preview_text = request.args.get('preview_text', '')
+    filename_saved = request.args.get('filename_saved', '')
+
     if request.method == 'POST':
-        if 'word_file' in request.files:
+        action = request.form.get('action')
+        
+        # PASO 1: Subir y extraer texto para mostrar previsualización
+        if action == 'upload' and 'word_file' in request.files:
             file = request.files['word_file']
             if file and file.filename.endswith('.docx') and docx is not None:
                 filename = secure_filename(f"historial_{patient.id}_{file.filename}")
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
                 
-                # Leer el contenido del documento Word y parsear párrafos
+                # Leer el contenido del documento Word
                 doc = docx.Document(filepath)
-                full_text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+                extracted_text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
                 
-                if full_text:
-                    today_str = date.today().strftime('%Y-%m-%d')
-                    record = MedicalRecord(
-                        patient_id=patient.id,
-                        date=today_str,
-                        notes=f"[Importado desde Word]\n{full_text}",
-                        indicaciones_tratamiento="Ver historial importado en notas de evolución."
-                    )
-                    db.session.add(record)
-                    db.session.commit()
-                    
-        return redirect(url_for('patient_detail', id=patient.id))
-    return render_template('import_docx.html', patient=patient)
+                return render_template('import_docx.html', patient=patient, preview_text=extracted_text, filename_saved=filename)
+        
+        # PASO 2: Confirmar y guardar definitivamente en las notas de evolución del paciente
+        elif action == 'confirm':
+            final_text = request.form.get('final_text', '')
+            if final_text:
+                today_str = date.today().strftime('%Y-%m-%d')
+                record = MedicalRecord(
+                    patient_id=patient.id,
+                    date=today_str,
+                    notes=f"[Importado desde documento Word]\n{final_text}",
+                    indicaciones_tratamiento="Ver historial importado en notas de evolución."
+                )
+                db.session.add(record)
+                db.session.commit()
+                flash("✅ ¡Historial importado exitosamente en las notas del paciente!", "success")
+                return redirect(url_for('patient_detail', id=patient.id))
+
+    return render_template('import_docx.html', patient=patient, preview_text=None)
 
 @app.route('/record/new/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
@@ -551,7 +567,7 @@ def new_record(patient_id):
             indicaciones_tratamiento=format_text(request.form.get('indicaciones_tratamiento')),
             medications=format_text(request.form.get('medications')),
             proximo_control=request.form.get('proximo_control'),
-            notes=format_text(request.form.get('notes')), # Evolución, mejorías, dificultades
+            notes=format_text(request.form.get('notes')),
             conducta_medica=format_text(request.form.get('conducta_medica'))
         )
         db.session.add(record)
