@@ -27,9 +27,17 @@
         <h4 class="text-center mb-4">Nuevo Control Clínico para: {{ patient.full_name }}</h4>
         
         <form method="POST" action="{{ url_for('new_record', patient_id=patient.id) }}" enctype="multipart/form-data">
-            <div class="mb-4">
-                <label class="form-label fw-bold">Fecha del Control *</label>
-                <input type="date" class="form-control" name="date" required style="max-width: 300px;">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Fecha del Control / Consulta *</label>
+                    <input type="date" class="form-control" name="date" required>
+                </div>
+            </div>
+
+            <!-- CAMPO DE EVOLUCIÓN DE TEXTO LIBRE (MEJORÍAS, DIFICULTADES, ETC.) -->
+            <div class="card bg-black border-secondary p-3 mb-4">
+                <h6 class="text-info mb-2">📝 Evolución y Notas de la Consulta (Mejorías, Dificultades, etc.)</h6>
+                <textarea class="form-control" name="notes" rows="3" placeholder="Escriba aquí la evolución clínica, síntomas, mejorías o dificultades comentadas en la consulta..."></textarea>
             </div>
 
             <div class="card bg-black border-secondary p-3 mb-4">
@@ -110,6 +118,14 @@
 
                 <div class="tab-pane fade" id="laboratorios" role="tabpanel">
                     <h5 class="section-title">Laboratorios y Bioquímica</h5>
+                    
+                    <!-- FECHA INDEPENDIENTE DE LABORATORIOS -->
+                    <div class="mb-4 p-3 bg-dark border border-secondary rounded" style="max-width: 350px;">
+                        <label class="form-label text-warning fw-bold">📅 Fecha Real del Laboratorio (Opcional)</label>
+                        <input type="date" class="form-control bg-black text-white" name="lab_date">
+                        <small class="text-muted">Si el análisis es de una fecha anterior (ej. agosto), indíquelo aquí.</small>
+                    </div>
+
                     <div class="row g-3">
                         <div class="col-md-3"><label class="form-label text-light">Glicemia</label><input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="glucose"></div>
                         <div class="col-md-3"><label class="form-label">Insulina</label><input type="number" step="0.1" class="form-control" name="insulin"></div>
@@ -139,7 +155,6 @@
                         <div class="col-md-6"><label class="form-label">Fósforo</label><input type="number" step="0.1" class="form-control" name="phosphorus"></div>
                         <div class="col-md-6"><label class="form-label">Cloro</label><input type="number" step="0.1" class="form-control" name="chlorine"></div>
                         
-                        <!-- NUEVO CAMPO: OTROS LABORATORIOS -->
                         <div class="col-md-12 mt-3">
                             <label class="form-label text-warning fw-bold">🧪 Otros Laboratorios / Valores Adicionales</label>
                             <textarea class="form-control" name="otros_laboratorios" rows="2" placeholder="Ej. Ferritina, Prolactina, PSA, etc."></textarea>
@@ -148,11 +163,11 @@
                 </div>
 
                 <div class="tab-pane fade" id="estudios" role="tabpanel">
-                    <h5 class="section-title">Estudios Complementarios</h5>
+                    <h5 class="section-title">Estudios Complementarios (Ecografías, TAC, etc.)</h5>
                     <div class="row g-3">
-                        <div class="col-md-12"><label class="form-label">Ecografía Abdominal</label><input type="text" class="form-control" name="ecografia_abdominal"></div>
-                        <div class="col-md-12"><label class="form-label">Ecografía Tiroidea</label><input type="text" class="form-control" name="ecografia_tiroidea"></div>
-                        <div class="col-md-12"><label class="form-label">Otros Estudios</label><input type="text" class="form-control" name="otros_estudios"></div>
+                        <div class="col-md-12"><label class="form-label">Ecografía Abdominal</label><input type="text" class="form-control" name="ecografia_abdominal" placeholder="Resultados o hallazgos..."></div>
+                        <div class="col-md-12"><label class="form-label">Ecografía Tiroidea</label><input type="text" class="form-control" name="ecografia_tiroidea" placeholder="Resultados o hallazgos..."></div>
+                        <div class="col-md-12"><label class="form-label">Otros Estudios (TAC, Resonancia, Informes)</label><input type="text" class="form-control" name="otros_estudios" placeholder="Descripción de estudios..."></div>
                     </div>
                 </div>
 
@@ -166,24 +181,24 @@
                     </div>
 
                     <div class="card bg-black border-secondary p-3">
-                        <h6 class="text-danger mb-3">📸 Adjuntar Foto de Consulta</h6>
+                        <h6 class="text-danger mb-3">📸 Adjuntar Foto o Estudio Escaneado</h6>
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Categoría</label>
                                 <select class="form-select bg-dark text-white border-secondary" name="photo_category">
-                                    <option value="Antes">Foto Inicial (Antes)</option>
                                     <option value="Evolución">Control / Evolución</option>
-                                    <option value="Lesión en Piel">Lesión en Piel</option>
+                                    <option value="Estudios / Ecografía">Estudio / Ecografía / TAC</option>
+                                    <option value="Antes">Foto Inicial (Antes)</option>
                                     <option value="Después">Resultado Final (Después)</option>
                                 </select>
                             </div>
                             <div class="col-md-5">
-                                <label class="form-label">Seleccionar Imagen</label>
-                                <input type="file" class="form-control bg-dark text-white border-secondary" name="photo" accept="image/*">
+                                <label class="form-label">Seleccionar Archivo / Imagen</label>
+                                <input type="file" class="form-control bg-dark text-white border-secondary" name="photo" accept="image/*,.pdf">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Notas de la Foto</label>
-                                <input type="text" class="form-control bg-dark text-white border-secondary" name="photo_notes" placeholder="Ej. Mejora...">
+                                <label class="form-label">Notas del Archivo</label>
+                                <input type="text" class="form-control bg-dark text-white border-secondary" name="photo_notes" placeholder="Ej. Ecografía de cuello...">
                             </div>
                         </div>
                     </div>
