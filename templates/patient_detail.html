@@ -54,14 +54,6 @@
         {% endif %}
     </div>
 
-    <!-- EVOLUCIÓN DE LA CONSULTA ACTUAL -->
-    {% if valid_records and valid_records[-1].notes %}
-    <div class="card p-3 mb-4 border-warning bg-black">
-        <h6 class="text-warning mb-2">📝 Evolución y Notas de la Última Consulta ({{ valid_records[-1].date }})</h6>
-        <div class="text-white" style="white-space: pre-line;">{{ valid_records[-1].notes }}</div>
-    </div>
-    {% endif %}
-
     <!-- TARJETA DE FILIACIÓN Y DATOS GENERALES -->
     <div class="card p-4 shadow-lg rounded-4 mb-4">
         <h4 class="text-warning mb-3">Filiación y Datos Clínicos: {{ patient.full_name }}</h4>
@@ -87,7 +79,8 @@
         <li class="nav-item"><button class="nav-link" id="laboratorios-tab" data-bs-toggle="pill" data-bs-target="#laboratorios" type="button" role="tab">🧪 Laboratorios</button></li>
         <li class="nav-item"><button class="nav-link" id="estudios-tab" data-bs-toggle="pill" data-bs-target="#estudios" type="button" role="tab">📋 Estudios / Ecografías</button></li>
         <li class="nav-item"><button class="nav-link" id="indicaciones-tab" data-bs-toggle="pill" data-bs-target="#indicaciones" type="button" role="tab">📚 Historial de Indicaciones</button></li>
-        <li class="nav-item"><button class="nav-link" id="fotos-tab" data-bs-toggle="pill" data-bs-target="#fotos" type="button" role="tab">📸 Galería de Fotos y Estudios</button></li>
+        <li class="nav-item"><button class="nav-link" id="wordnotes-tab" data-bs-toggle="pill" data-bs-target="#wordnotes" type="button" role="tab">📄 Notas de Word / Historial</button></li>
+        <li class="nav-item"><button class="nav-link" id="fotos-tab" data-bs-toggle="pill" data-bs-target="#fotos" type="button" role="tab">📸 Galería y Estudios</button></li>
     </ul>
 
     <!-- CONTENIDO DE LAS PESTAÑAS -->
@@ -261,6 +254,29 @@
                     {% endfor %}
                 {% else %}
                 <p class="text-light text-center py-3">No hay indicaciones registradas.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Notas de Word / Historial Importado -->
+        <div class="tab-pane fade" id="wordnotes" role="tabpanel">
+            <div class="card p-4 shadow-lg rounded-4">
+                <h5 class="section-title text-info">📄 Historial y Notas Importadas de Word</h5>
+                {% set word_records = patient.records | selectattr('notes') | list %}
+                {% if word_records %}
+                    {% for r in word_records %}
+                    <div class="card bg-dark border-secondary p-3 mb-3">
+                        <div class="d-flex justify-content-between text-warning mb-2">
+                            <strong>Importado el: {{ r.date }}</strong>
+                            <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" onsubmit="return confirm('¿Segura de borrar este documento importado?');" class="m-0">
+                                <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2">🗑️ Eliminar</button>
+                            </form>
+                        </div>
+                        <div class="text-white" style="white-space: pre-line; font-size: 1rem; line-height: 1.6;">{{ r.notes }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-muted text-center py-3">No hay documentos de Word importados todavía para este paciente.</p>
                 {% endif %}
             </div>
         </div>
