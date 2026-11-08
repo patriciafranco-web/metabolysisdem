@@ -1,29 +1,59 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container py-5" style="max-width: 700px;">
-    <div class="card p-4 shadow-lg rounded-4" style="background-color: #1e1e1e; border: 1px solid #333;">
+<div class="container py-5" style="max-width: 800px;">
+    <div class="card p-4 shadow-lg rounded-4" style="background-color: #1e1e1e; border: 1px solid #444;">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="text-danger fw-bold m-0"><i class="bi bi-file-earmark-word-fill"></i> Importar Historial de Word</h3>
-            <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary btn-sm">⬅️ Volver</a>
+            <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary btn-sm">⬅️ Volver al Perfil</a>
         </div>
 
         <p class="text-light">
-            Sube el archivo de Word (<code>.docx</code>) correspondiente al historial en Google Drive de la paciente 
-            <strong class="text-warning">{{ patient.full_name }}</strong>. El sistema extraerá automáticamente todo el texto y lo volcará en su ficha clínica.
+            Paciente: <strong class="text-warning">{{ patient.full_name }}</strong> (CI: {{ patient.ci }})
         </p>
 
+        {% if not preview_text %}
+        <!-- PASO 1: SELECCIONAR ARCHIVO -->
+        <div class="alert alert-dark border-secondary text-light">
+            Seleccione el documento de Word (<code>.docx</code>) exportado de Google Drive. El sistema leerá el contenido para que pueda previsualizarlo antes de guardarlo.
+        </div>
+        
         <form method="POST" enctype="multipart/form-data" class="mt-3">
-            <div class="mb-4">
-                <label class="form-label text-light fw-bold">Seleccionar Archivo .docx</label>
+            <input type="hidden" name="action" value="upload">
+            <div class="mb-3">
+                <label class="form-label text-warning fw-bold">Seleccionar Archivo .docx</label>
                 <input type="file" class="form-control bg-dark text-white border-secondary py-2" name="word_file" accept=".docx" required>
             </div>
-
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-danger py-3 fw-bold fs-5">
-                    <i class="bi bi-upload"></i> Procesar e Importar Historial
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary fw-bold px-4">
+                    <i class="bi bi-search"></i> Analizar y Previsualizar
                 </button>
             </div>
         </form>
+
+        {% else %}
+        <!-- PASO 2: VENTANA DE PREVISUALIZACIÓN -->
+        <div class="alert alert-info bg-dark border-info text-light mb-3">
+            <strong>👁️ Vista Previa del Texto Extraído:</strong> Revise a continuación el contenido que se guardará automáticamente en las <strong>Notas de Evolución</strong> del paciente.
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="action" value="confirm">
+            <input type="hidden" name="filename_saved" value="{{ filename_saved }}">
+            
+            <div class="mb-3">
+                <textarea class="form-control bg-dark text-white border-secondary" name="final_text" rows="12" style="font-size: 0.95rem; line-height: 1.5;" required>{{ preview_text }}</textarea>
+                <small class="text-muted">Puede realizar ajustes o correcciones directamente en este cuadro de texto antes de confirmar la importación.</small>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4 pt-3 border-top border-secondary">
+                <a href="{{ url_for('import_docx', patient_id=patient.id) }}" class="btn btn-secondary">❌ Cancelar y Elegir Otro</a>
+                <button type="submit" class="btn btn-success fw-bold px-4">
+                    <i class="bi bi-check-circle"></i> Confirmar y Guardar en la Ficha
+                </button>
+            </div>
+        </form>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
