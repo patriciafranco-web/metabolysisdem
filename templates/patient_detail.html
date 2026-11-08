@@ -29,17 +29,12 @@
         </div>
         <div class="d-flex gap-2 flex-wrap align-items-center">
             <a href="{{ url_for('edit_patient', id=patient.id) }}" class="btn btn-outline-warning btn-sm fw-bold text-light">✏️ Editar Paciente</a>
-            <form action="{{ url_for('delete_patient', id=patient.id) }}" method="POST" onsubmit="return confirm('ATENCIÓN: ¿Está seguro de eliminar TODO el perfil de este paciente? Se borrará todo su historial y fotos. Esta acción NO se puede deshacer.');" class="m-0">
-                <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">🗑️ Eliminar Paciente</button>
+            <form action="{{ url_for('delete_patient', id=patient.id) }}" method="POST" onsubmit="return confirm('ATENCIÓN: ¿Está seguro de eliminar TODO el perfil de este paciente? Se borrará todo su historial y fotos.');" class="m-0">
+                <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">🗑️ Eliminar</button>
             </form>
             <div class="border-start border-secondary mx-1" style="height: 25px;"></div>
             
-            <!-- NUEVO BOTÓN PARA SUBIR HISTORIAL DE WORD -->
-            <a href="{{ url_for('import_docx', patient_id=patient.id) }}" class="btn btn-outline-info btn-sm fw-bold text-light">
-                <i class="bi bi-file-earmark-word"></i> 📄 Subir Word
-            </a>
-
-            
+            <a href="{{ url_for('import_docx', patient_id=patient.id) }}" class="btn btn-outline-info btn-sm fw-bold text-light">📄 Subir Word</a>
             <a href="{{ url_for('edit_treatment', patient_id=patient.id) }}" class="btn btn-warning btn-sm fw-bold">📋 Plan Médico</a>
             <a href="{{ url_for('new_record', patient_id=patient.id) }}" class="btn btn-primary btn-sm fw-bold">➕ Nuevo Control</a>
             <a href="{{ url_for('generate_pdf', patient_id=patient.id) }}" class="btn btn-success btn-sm fw-bold">📄 Informe PDF</a>
@@ -49,27 +44,27 @@
     <!-- ÚLTIMA INDICACIÓN DESTACADA -->
     <div class="card p-4 shadow-lg rounded-4 mb-4" style="background-color: #0d1b2a !important; border: 1px solid #17a2b8 !important;">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="text-info fw-bold m-0">📌 Última Indicación / Plan a Seguir</h4>
+            <h4 class="text-info fw-bold m-0">📌 Último Plan / Indicaciones Terapéuticas</h4>
             <a href="{{ url_for('edit_treatment', patient_id=patient.id) }}" class="btn btn-outline-info btn-sm fw-bold">✏️ Modificar Plan</a>
         </div>
-        
         {% if valid_records and valid_records[-1].indicaciones_tratamiento %}
             <div class="text-white" style="white-space: pre-line; font-size: 1.1rem; line-height: 1.6;">{{ valid_records[-1].indicaciones_tratamiento }}</div>
         {% else %}
-            <div class="text-muted" style="font-size: 1.1rem; line-height: 1.6;">Aún no hay indicaciones registradas para el último control de este paciente.</div>
+            <div class="text-muted" style="font-size: 1.1rem;">Aún no hay indicaciones registradas para el último control.</div>
         {% endif %}
     </div>
 
+    <!-- EVOLUCIÓN DE LA CONSULTA ACTUAL -->
+    {% if valid_records and valid_records[-1].notes %}
+    <div class="card p-3 mb-4 border-warning bg-black">
+        <h6 class="text-warning mb-2">📝 Evolución y Notas de la Última Consulta ({{ valid_records[-1].date }})</h6>
+        <div class="text-white" style="white-space: pre-line;">{{ valid_records[-1].notes }}</div>
+    </div>
+    {% endif %}
+
     <!-- TARJETA DE FILIACIÓN Y DATOS GENERALES -->
     <div class="card p-4 shadow-lg rounded-4 mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap mb-3 gap-2">
-            <h4 class="text-warning m-0">Filiación y Datos Clínicos: {{ patient.full_name }}</h4>
-            <div class="d-flex gap-3 bg-dark px-3 py-2 rounded border border-warning text-light small shadow-sm">
-                <span>📏 <strong>Altura:</strong> {% if valid_records and valid_records[-1].height %}{{ valid_records[-1].height }} cm{% else %}No reg.{% endif %}</span>
-                <span>📅 <strong>Nacimiento:</strong> {{ patient.birth_date or 'N/D' }}</span>
-            </div>
-        </div>
-
+        <h4 class="text-warning mb-3">Filiación y Datos Clínicos: {{ patient.full_name }}</h4>
         <div class="row g-3">
             <div class="col-md-3"><strong>Cédula (CI):</strong> <span class="text-white">{{ patient.ci }}</span></div>
             <div class="col-md-3"><strong>Edad:</strong> <span class="text-white">{{ patient.age }} años</span></div>
@@ -77,99 +72,55 @@
             <div class="col-md-3"><strong>Teléfono:</strong> <span class="text-white">{{ patient.phone or 'N/D' }}</span></div>
             <div class="col-md-3"><strong>Sanatorio:</strong> <span class="text-white">{{ patient.sanatorio }}</span></div>
             <div class="col-md-3"><strong>Seguro Médico:</strong> <span class="text-white">{{ patient.seguro_medico or 'N/D' }}</span></div>
-            <div class="col-md-3"><strong>Inicio Tratamiento:</strong> <span class="text-white">{{ patient.fecha_inicio_tratamiento or 'N/D' }}</span></div>
             <div class="col-md-3"><strong>Patología Principal:</strong> <span class="text-white">{{ patient.pathology_type or 'N/D' }}</span></div>
         </div>
-
         <hr class="border-secondary my-3">
         <div class="row g-3 text-light">
             <div class="col-md-6" style="white-space: pre-line;"><strong>Ant. Familiares:</strong><br>{{ patient.antecedentes_familiares or 'Ninguno' }}</div>
             <div class="col-md-6" style="white-space: pre-line;"><strong>Ant. Personales:</strong><br>{{ patient.antecedentes_personales or 'Ninguno' }}</div>
-            <div class="col-md-6" style="white-space: pre-line;"><strong>Tratamiento Base (Histórico):</strong><br>{{ patient.tratamiento_base or 'Ninguno' }}</div>
-            {% if patient.gender == 'Mujer' %}
-            <div class="col-md-6 text-warning"><strong>Ginecológicos:</strong> Hijos: {{ patient.cant_hijos or '-' }} | Menarca: {{ patient.menarca or '-' }} | Reg: {{ patient.menstruacion_regular or '-' }} | Anticonceptivos: {{ patient.anticonceptivos or '-' }}</div>
-            {% endif %}
         </div>
     </div>
-
-    <!-- CALCULADORAS CLÍNICAS AUTOMÁTICAS -->
-    {% if valid_records %}
-    {% set last_r = valid_records[-1] %}
-    <div class="card p-3 mb-4 border-secondary bg-black">
-        <h6 class="text-warning mb-3">🧮 Calculadoras Clínicas Automáticas (Último Control: {{ last_r.date }})</h6>
-        <div class="row g-3">
-            <div class="col-md-6">
-                <div class="p-3 rounded border border-secondary bg-dark">
-                    <span class="text-info small fw-bold">ÍNDICE CINTURA-ALTURA (ICA)</span>
-                    <h4 class="fw-bold mb-1 text-white">{{ last_r.ica_value or 'N/D' }}</h4>
-                    {% set ica_info = last_r.ica_status %}
-                    <span class="badge bg-{{ ica_info[1] }} px-3 py-2 fs-6">{{ ica_info[0] }}</span>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="p-3 rounded border border-secondary bg-dark">
-                    <span class="text-info small fw-bold">ESTIMACIÓN RIESGO CARDIOVASCULAR</span>
-                    <h4 class="fw-bold mb-1 text-white">Evaluación Automática</h4>
-                    {% set cardio_info = last_r.cardio_risk_estimate %}
-                    <span class="badge bg-{{ cardio_info[1] }} px-3 py-2 fs-6">{{ cardio_info[0] }}</span>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- PESTAÑAS DE NAVEGACIÓN SUPERIOR -->
     <ul class="nav nav-pills mb-4" id="patientTab" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="antropometria-tab" data-bs-toggle="pill" data-bs-target="#antropometria" type="button" role="tab">⚖️ Evolución Antropométrica</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="laboratorios-tab" data-bs-toggle="pill" data-bs-target="#laboratorios" type="button" role="tab">🧪 Laboratorios y Bioquímica</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="fotos-tab" data-bs-toggle="pill" data-bs-target="#fotos" type="button" role="tab">📸 Galería de Fotos</button>
-        </li>
+        <li class="nav-item"><button class="nav-link active" id="antropometria-tab" data-bs-toggle="pill" data-bs-target="#antropometria" type="button" role="tab">⚖️ Antropometría</button></li>
+        <li class="nav-item"><button class="nav-link" id="laboratorios-tab" data-bs-toggle="pill" data-bs-target="#laboratorios" type="button" role="tab">🧪 Laboratorios</button></li>
+        <li class="nav-item"><button class="nav-link" id="estudios-tab" data-bs-toggle="pill" data-bs-target="#estudios" type="button" role="tab">📋 Estudios / Ecografías</button></li>
+        <li class="nav-item"><button class="nav-link" id="indicaciones-tab" data-bs-toggle="pill" data-bs-target="#indicaciones" type="button" role="tab">📚 Historial de Indicaciones</button></li>
+        <li class="nav-item"><button class="nav-link" id="fotos-tab" data-bs-toggle="pill" data-bs-target="#fotos" type="button" role="tab">📸 Galería de Fotos y Estudios</button></li>
     </ul>
 
     <!-- CONTENIDO DE LAS PESTAÑAS -->
     <div class="tab-content" id="patientTabContent">
-        <!-- Pestaña 1: Antropometría -->
+        <!-- Antropometría -->
         <div class="tab-pane fade show active" id="antropometria" role="tabpanel">
             <div class="card p-4 shadow-lg rounded-4">
-                <h5 class="section-title">Historial Antropométrico y Diferencias (Evolución)</h5>
+                <h5 class="section-title">Historial Antropométrico y Evolución</h5>
                 {% if valid_records %}
                 <div class="table-responsive">
                     <table class="table table-dark table-striped table-hover align-middle text-center small">
                         <thead>
                             <tr>
-                                <th>Fecha</th>
+                                <th>Fecha Consulta</th>
                                 <th>Balanza</th>
                                 <th>PA / FC</th>
                                 <th>Peso (kg)</th>
                                 <th>Dif. Peso</th>
                                 <th>IMC</th>
                                 <th>Cintura (cm)</th>
-                                <th>Dif. Cintura</th>
                                 <th>Grasa (%)</th>
-                                <th>Grasa (kg)</th>
                                 <th>Visceral</th>
                                 <th>Músculo (kg)</th>
-                                <th>Dif. Músculo</th>
                                 <th class="text-warning">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% set ns = namespace(first_w=0, first_wst=0, first_m=0) %}
+                            {% set ns = namespace(first_w=0) %}
                             {% for r in valid_records %}
                                 {% if ns.first_w == 0 and r.weight %}{% set ns.first_w = r.weight %}{% endif %}
-                                {% if ns.first_wst == 0 and r.waist %}{% set ns.first_wst = r.waist %}{% endif %}
-                                {% if ns.first_m == 0 and r.muscle_mass_kg %}{% set ns.first_m = r.muscle_mass_kg %}{% endif %}
                             {% endfor %}
-
                             {% for r in valid_records %}
                                 {% set w_diff = (r.weight - ns.first_w) | round(2) if r.weight and ns.first_w else 0 %}
-                                {% set wst_diff = (r.waist - ns.first_wst) | round(1) if r.waist and ns.first_wst else 0 %}
-                                {% set m_diff = (r.muscle_mass_kg - ns.first_m) | round(2) if r.muscle_mass_kg and ns.first_m else 0 %}
                             <tr>
                                 <td>{{ r.date }}</td>
                                 <td>{{ r.marca_balanza or '-' }}</td>
@@ -177,54 +128,21 @@
                                 <td class="fw-bold">{{ r.weight or '-' }}</td>
                                 <td>
                                     {% if loop.index > 1 %}
-                                        {% if w_diff < 0 %}
-                                            <span class="badge bg-success">{{ w_diff }} kg</span>
-                                        {% elif w_diff > 0 %}
-                                            <span class="badge bg-danger">+{{ w_diff }} kg</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">0 kg</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-muted">Inicio</span>
-                                    {% endif %}
+                                        {% if w_diff < 0 %}<span class="badge bg-success">{{ w_diff }} kg</span>
+                                        {% elif w_diff > 0 %}<span class="badge bg-danger">+{{ w_diff }} kg</span>
+                                        {% else %}<span class="badge bg-secondary">0 kg</span>{% endif %}
+                                    {% else %}<span class="text-muted">Inicio</span>{% endif %}
                                 </td>
                                 <td>{{ r.bmi }}</td>
                                 <td>{{ r.waist or '-' }}</td>
-                                <td>
-                                    {% if loop.index > 1 %}
-                                        {% if wst_diff < 0 %}
-                                            <span class="badge bg-success">{{ wst_diff }} cm</span>
-                                        {% elif wst_diff > 0 %}
-                                            <span class="badge bg-danger">+{{ wst_diff }} cm</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">0 cm</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-muted">Inicio</span>
-                                    {% endif %}
-                                </td>
                                 <td>{{ r.body_fat_pct or '-' }}</td>
-                                <td>{{ r.body_fat_kg or '-' }}</td>
                                 <td>{{ r.visceral_fat or '-' }}</td>
                                 <td>{{ r.muscle_mass_kg or '-' }}</td>
                                 <td>
-                                    {% if loop.index > 1 %}
-                                        {% if m_diff > 0 %}
-                                            <span class="badge bg-success">+{{ m_diff }} kg</span>
-                                        {% elif m_diff < 0 %}
-                                            <span class="badge bg-danger">{{ m_diff }} kg</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">0 kg</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-muted">Inicio</span>
-                                    {% endif %}
-                                </td>
-                                <td>
                                     <div class="d-flex gap-1 justify-content-center">
-                                        <a href="{{ url_for('edit_record', id=r.id) }}" class="btn btn-outline-warning btn-sm px-2 py-0" title="Editar Consulta">✏️</a>
-                                        <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" onsubmit="return confirm('¿Segura de que quieres borrar este control médico?');" class="m-0 p-0">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm px-2 py-0" title="Eliminar Consulta">🗑️</button>
+                                        <a href="{{ url_for('edit_record', id=r.id) }}" class="btn btn-outline-warning btn-sm px-2 py-0" title="Editar">✏️</a>
+                                        <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" onsubmit="return confirm('¿Segura de borrar este control?');" class="m-0 p-0">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm px-2 py-0" title="Borrar">🗑️</button>
                                         </form>
                                     </div>
                                 </td>
@@ -234,12 +152,12 @@
                     </table>
                 </div>
                 {% else %}
-                <p class="text-light text-center py-3">No hay registros antropométricos cargados todavía.</p>
+                <p class="text-light text-center py-3">No hay registros antropométricos cargados.</p>
                 {% endif %}
             </div>
         </div>
 
-        <!-- Pestaña 2: Laboratorios -->
+        <!-- Laboratorios -->
         <div class="tab-pane fade" id="laboratorios" role="tabpanel">
             <div class="card p-4 shadow-lg rounded-4">
                 <h5 class="section-title">Historial de Laboratorios y Bioquímica</h5>
@@ -248,7 +166,8 @@
                     <table class="table table-dark table-striped table-hover align-middle text-center small">
                         <thead>
                             <tr>
-                                <th>Fecha</th>
+                                <th>Fecha Consulta</th>
+                                <th>Fecha Lab</th>
                                 <th>Glicemia</th>
                                 <th>Insulina</th>
                                 <th>HbA1c</th>
@@ -257,7 +176,6 @@
                                 <th>Col. Tot</th>
                                 <th>HDL</th>
                                 <th>LDL</th>
-                                <th>TGO/TGP</th>
                                 <th>TSH</th>
                                 <th>Otros Labs</th>
                             </tr>
@@ -266,6 +184,7 @@
                             {% for r in valid_records %}
                             <tr>
                                 <td>{{ r.date }}</td>
+                                <td class="text-warning">{{ r.lab_date or 'Misma fecha' }}</td>
                                 <td>{{ r.glucose or '-' }}</td>
                                 <td>{{ r.insulin or '-' }}</td>
                                 <td>{{ r.hba1c or '-' }}</td>
@@ -274,7 +193,6 @@
                                 <td>{{ r.cholesterol_tot or '-' }}</td>
                                 <td>{{ r.hdl or '-' }}</td>
                                 <td>{{ r.ldl or '-' }}</td>
-                                <td>{{ r.got or '-' }} / {{ r.gpt or '-' }}</td>
                                 <td>{{ r.tsh or '-' }}</td>
                                 <td class="text-warning small">{{ r.otros_laboratorios or '-' }}</td>
                             </tr>
@@ -288,31 +206,88 @@
             </div>
         </div>
 
-        <!-- Pestaña 3: Fotos -->
+        <!-- Estudios / Ecografías -->
+        <div class="tab-pane fade" id="estudios" role="tabpanel">
+            <div class="card p-4 shadow-lg rounded-4">
+                <h5 class="section-title">📋 Estudios Complementarios Registrados</h5>
+                {% if valid_records %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Ecografía Abdominal</th>
+                                <th>Ecografía Tiroidea</th>
+                                <th>Otros Estudios</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in valid_records %}
+                            {% if r.ecografia_abdominal or r.ecografia_tiroidea or r.otros_estudios %}
+                            <tr>
+                                <td><strong>{{ r.date }}</strong></td>
+                                <td>{{ r.ecografia_abdominal or '-' }}</td>
+                                <td>{{ r.ecografia_tiroidea or '-' }}</td>
+                                <td>{{ r.otros_estudios or '-' }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-light text-center py-3">No hay estudios registrados.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Historial de Indicaciones -->
+        <div class="tab-pane fade" id="indicaciones" role="tabpanel">
+            <div class="card p-4 shadow-lg rounded-4">
+                <h5 class="section-title">📚 Archivo Histórico de Indicaciones y Tratamientos</h5>
+                {% if valid_records %}
+                    {% for r in valid_records | reverse %}
+                    <div class="card bg-dark border-secondary p-3 mb-3">
+                        <div class="d-flex justify-content-between text-warning mb-2">
+                            <strong>Control del: {{ r.date }}</strong>
+                            {% if r.proximo_control %}<span>Próximo control: {{ r.proximo_control }}</span>{% endif %}
+                        </div>
+                        <div class="text-white" style="white-space: pre-line;">
+                            {% if r.indicaciones_tratamiento %}<strong>Indicaciones:</strong><br>{{ r.indicaciones_tratamiento }}<br>{% endif %}
+                            {% if r.medications %}<strong class="mt-2 d-block">Medicación:</strong>{{ r.medications }}<br>{% endif %}
+                            {% if r.conducta_medica %}<strong class="mt-2 d-block">Conducta:</strong>{{ r.conducta_medica }}{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-light text-center py-3">No hay indicaciones registradas.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Galería de Fotos y Estudios -->
         <div class="tab-pane fade" id="fotos" role="tabpanel">
             <div class="card p-4 shadow-lg rounded-4">
-                <h5 class="section-title">📸 Galería de Evolución y Fotografías</h5>
+                <h5 class="section-title">📸 Galería de Fotografías y Estudios Adjuntos</h5>
                 {% if patient.photos %}
                 <div class="row g-4">
                     {% for photo in patient.photos %}
                     <div class="col-md-3">
                         <div class="card bg-dark border-secondary p-2">
                             <a href="{{ url_for('uploaded_file', filename=photo.filename) }}" target="_blank">
-                                <img src="{{ url_for('uploaded_file', filename=photo.filename) }}" class="patient-img" alt="Foto Paciente">
+                                <img src="{{ url_for('uploaded_file', filename=photo.filename) }}" class="patient-img" alt="Foto">
                             </a>
                             <div class="mt-2 small">
                                 <span class="badge bg-danger mb-1">{{ photo.category }}</span>
                                 <div class="text-light">Fecha: {{ photo.date }}</div>
-                                {% if photo.notes %}
-                                <div class="text-white mt-1"><em>{{ photo.notes }}</em></div>
-                                {% endif %}
+                                {% if photo.notes %}<div class="text-white mt-1"><em>{{ photo.notes }}</em></div>{% endif %}
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-light text-center py-3">No hay fotos registradas para este paciente.</p>
+                <p class="text-light text-center py-3">No hay archivos ni fotos registradas.</p>
                 {% endif %}
             </div>
         </div>
