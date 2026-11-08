@@ -20,6 +20,12 @@
                 </div>
             </div>
 
+            <!-- CAMPO DE EVOLUCIÓN Y NOTAS DE LA CONSULTA -->
+            <div class="card bg-black border-secondary p-3 mb-4">
+                <h6 class="text-info mb-2">📝 Evolución y Notas de la Consulta</h6>
+                <textarea class="form-control bg-dark text-white border-secondary" name="notes" rows="3" placeholder="Escriba aquí la evolución clínica, síntomas, mejorías o dificultades...-">{{ record.notes or '' }}</textarea>
+            </div>
+
             <h5 class="text-danger border-bottom border-secondary pb-2">Antropometría Principal</h5>
             <div class="row g-3 mb-4">
                 <div class="col-md-3">
@@ -65,6 +71,14 @@
             </div>
 
             <h5 class="text-danger border-bottom border-secondary pb-2 mt-4">Laboratorios y Bioquímica</h5>
+            
+            <!-- FECHA INDEPENDIENTE DE LABORATORIOS -->
+            <div class="mb-3 p-3 bg-dark border border-secondary rounded" style="max-width: 350px;">
+                <label class="form-label text-warning fw-bold">📅 Fecha Real del Laboratorio (Opcional)</label>
+                <input type="date" class="form-control bg-black text-white" name="lab_date" value="{{ record.lab_date or '' }}">
+                <small class="text-muted">Si el análisis es de una fecha anterior (ej. agosto), indíquelo aquí.</small>
+            </div>
+
             <div class="row g-3 mb-4">
                 <div class="col-md-3">
                     <label class="form-label text-light">Glicemia</label>
@@ -127,7 +141,6 @@
                     <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary" name="t3" value="{{ record.t3 or '' }}">
                 </div>
                 
-                <!-- NUEVO CAMPO: OTROS LABORATORIOS EN EDICIÓN -->
                 <div class="col-md-12 mt-3">
                     <label class="form-label text-warning fw-bold">🧪 Otros Laboratorios / Valores Adicionales</label>
                     <textarea class="form-control bg-dark text-white border-secondary" name="otros_laboratorios" rows="2" placeholder="Ej. Ferritina, Prolactina, PSA, etc.">{{ record.otros_laboratorios or '' }}</textarea>
