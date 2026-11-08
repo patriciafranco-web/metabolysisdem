@@ -477,9 +477,10 @@ def import_docx(patient_id):
                 doc = docx.Document(filepath)
                 extracted_text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
                 
-                return render_template('import_docx.html', patient=patient, preview_text=extracted_text, filename_saved=filename)
+                # Redirigir pasando el texto extraído como argumento para evitar errores de renderizado
+                return redirect(url_for('import_docx', patient_id=patient.id, preview_text=extracted_text, filename_saved=filename))
         
-        # PASO 2: Confirmar y guardar definitivamente garantizando su visibilidad
+        # PASO 2: Confirmar y guardar definitivamente en las notas de Word
         elif action == 'confirm':
             final_text = request.form.get('final_text', '')
             if final_text:
@@ -487,16 +488,16 @@ def import_docx(patient_id):
                 record = MedicalRecord(
                     patient_id=patient.id,
                     date=today_str,
-                    weight=0.0,  # Evita romper los filtros de peso de la tabla principal
-                    notes=f"[Historial Importado de Word]\n{final_text}",
-                    indicaciones_tratamiento="Ver historial completo en las notas de Word."
+                    weight=None,  # Evita conflicto con tablas antropométricas
+                    notes=final_text,  # Se guarda directamente para verse en la pestaña de Notas de Word
+                    indicaciones_tratamiento="Ver historial importado en notas de Word."
                 )
                 db.session.add(record)
                 db.session.commit()
                 flash("✅ ¡Historial importado exitosamente!", "success")
                 return redirect(url_for('patient_detail', id=patient.id))
 
-    return render_template('import_docx.html', patient=patient, preview_text=None)
+    return render_template('import_docx.html', patient=patient, preview_text=preview_text, filename_saved=filename_saved)
 
 @app.route('/record/new/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
