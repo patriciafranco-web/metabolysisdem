@@ -401,7 +401,6 @@ def edit_patient(id):
         if existing and existing.id != patient.id:
             return f"<script>alert('❌ ERROR: La Cédula {ci_input} ya le pertenece a otro paciente en el sistema.'); window.history.back();</script>"
         
-        # Actualización BLINDADA: Si el campo viene con datos se actualiza, si viene vacío se preserva el anterior
         patient.full_name = format_text(request.form.get('full_name', patient.full_name))
         patient.ci = ci_input or patient.ci
         patient.birth_date = request.form.get('birth_date') or patient.birth_date
@@ -426,7 +425,7 @@ def edit_patient(id):
         patient.cant_hijos = request.form.get('cant_hijos') or patient.cant_hijos
         patient.menarca = format_text(request.form.get('menarca')) or patient.menarca
         patient.menstruacion_regular = request.form.get('menstruacion_regular') or patient.menstruacion_regular
-        patient.anticonceptivos = format_text(request.form.get('anticonceptivos')) or patient.anticonceptivos
+        patient.anticonceptivos = request.form.get('anticonceptivos') or patient.anticonceptivos
         patient.checklist_glp1_notas = format_text(request.form.get('checklist_glp1_notas')) or patient.checklist_glp1_notas
         patient.calidad_sueno = format_text(request.form.get('calidad_sueno')) or patient.calidad_sueno
         patient.actividad_fisica = format_text(request.form.get('actividad_fisica')) or patient.actividad_fisica
@@ -456,7 +455,7 @@ def patient_detail(id):
     weight_data = [r.weight for r in valid_records if r.weight]
     return render_template('patient_detail.html', patient=patient, valid_records=valid_records, dates=dates, hba1c_data=hba1c_data, weight_data=weight_data)
 
-# --- RUTA PARA SUBIR Y PREVISUALIZAR ARCHIVO WORD (.docx) ANTES DE GUARDAR ---
+# --- RUTA PARA SUBIR Y PREVISUALIZAR ARCHIVO WORD (.docx) ---
 @app.route('/patient/import_docx/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
 def import_docx(patient_id):
@@ -475,13 +474,12 @@ def import_docx(patient_id):
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
                 
-                # Leer el contenido del documento Word
                 doc = docx.Document(filepath)
                 extracted_text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
                 
                 return render_template('import_docx.html', patient=patient, preview_text=extracted_text, filename_saved=filename)
         
-        # PASO 2: Confirmar y guardar definitivamente en las notas de evolución del paciente
+        # PASO 2: Confirmar y guardar definitivamente garantizando su visibilidad
         elif action == 'confirm':
             final_text = request.form.get('final_text', '')
             if final_text:
@@ -489,12 +487,13 @@ def import_docx(patient_id):
                 record = MedicalRecord(
                     patient_id=patient.id,
                     date=today_str,
-                    notes=f"[Importado desde documento Word]\n{final_text}",
-                    indicaciones_tratamiento="Ver historial importado en notas de evolución."
+                    weight=0.0,  # Evita romper los filtros de peso de la tabla principal
+                    notes=f"[Historial Importado de Word]\n{final_text}",
+                    indicaciones_tratamiento="Ver historial completo en las notas de Word."
                 )
                 db.session.add(record)
                 db.session.commit()
-                flash("✅ ¡Historial importado exitosamente en las notas del paciente!", "success")
+                flash("✅ ¡Historial importado exitosamente!", "success")
                 return redirect(url_for('patient_detail', id=patient.id))
 
     return render_template('import_docx.html', patient=patient, preview_text=None)
