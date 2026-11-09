@@ -477,7 +477,6 @@ def import_docx(patient_id):
                 doc = docx.Document(filepath)
                 extracted_text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
                 
-                # Redirigir pasando el texto extraído como argumento para evitar errores de renderizado
                 return redirect(url_for('import_docx', patient_id=patient.id, preview_text=extracted_text, filename_saved=filename))
         
         # PASO 2: Confirmar y guardar definitivamente en las notas de Word
@@ -488,8 +487,8 @@ def import_docx(patient_id):
                 record = MedicalRecord(
                     patient_id=patient.id,
                     date=today_str,
-                    weight=None,  # Evita conflicto con tablas antropométricas
-                    notes=final_text,  # Se guarda directamente para verse en la pestaña de Notas de Word
+                    weight=None,
+                    notes=final_text,
                     indicaciones_tratamiento="Ver historial importado en notas de Word."
                 )
                 db.session.add(record)
