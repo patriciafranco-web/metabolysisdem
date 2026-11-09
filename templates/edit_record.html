@@ -23,7 +23,7 @@
             <!-- CAMPO DE EVOLUCIÓN Y NOTAS DE LA CONSULTA -->
             <div class="card bg-black border-secondary p-3 mb-4">
                 <h6 class="text-info mb-2">📝 Evolución y Notas de la Consulta</h6>
-                <textarea class="form-control bg-dark text-white border-secondary" name="notes" rows="3" placeholder="Escriba aquí la evolución clínica, síntomas, mejorías o dificultades...-">{{ record.notes or '' }}</textarea>
+                <textarea class="form-control bg-dark text-white border-secondary" name="notes" rows="3" placeholder="Escriba aquí la evolución clínica, síntomas, mejorías o dificultades...">{{ record.notes or '' }}</textarea>
             </div>
 
             <h5 class="text-danger border-bottom border-secondary pb-2">Antropometría Principal</h5>
@@ -144,6 +144,23 @@
                 <div class="col-md-12 mt-3">
                     <label class="form-label text-warning fw-bold">🧪 Otros Laboratorios / Valores Adicionales</label>
                     <textarea class="form-control bg-dark text-white border-secondary" name="otros_laboratorios" rows="2" placeholder="Ej. Ferritina, Prolactina, PSA, etc.">{{ record.otros_laboratorios or '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- ESTUDIOS Y ECOGRAFÍAS DE LA CONSULTA -->
+            <h5 class="text-danger border-bottom border-secondary pb-2 mt-4">Estudios y Ecografías</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-12">
+                    <label class="form-label text-light">Ecografía Abdominal</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="ecografia_abdominal" rows="2" placeholder="Detalle el informe de la ecografía abdominal...">{{ record.ecografia_abdominal or '' }}</textarea>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label text-light">Ecografía Tiroidea</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="ecografia_tiroidea" rows="2" placeholder="Detalle el informe de la ecografía tiroidea...">{{ record.ecografia_tiroidea or '' }}</textarea>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label text-light">Otros Estudios</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="otros_estudios" rows="2" placeholder="Ej. TAC, ECG, densitometría, etc.">{{ record.otros_estudios or '' }}</textarea>
                 </div>
             </div>
 
