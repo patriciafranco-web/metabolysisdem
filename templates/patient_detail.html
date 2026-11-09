@@ -234,10 +234,10 @@
             </div>
         </div>
 
-        <!-- Historial de Indicaciones -->
+        <!-- Historial de Indicaciones y Evolución -->
         <div class="tab-pane fade" id="indicaciones" role="tabpanel">
             <div class="card p-4 shadow-lg rounded-4">
-                <h5 class="section-title">📚 Archivo Histórico de Indicaciones y Tratamientos</h5>
+                <h5 class="section-title">📚 Archivo Histórico de Evolución e Indicaciones</h5>
                 {% if valid_records %}
                     {% for r in valid_records | reverse %}
                     <div class="card bg-dark border-secondary p-3 mb-3">
@@ -246,6 +246,11 @@
                             {% if r.proximo_control %}<span>Próximo control: {{ r.proximo_control }}</span>{% endif %}
                         </div>
                         <div class="text-white" style="white-space: pre-line;">
+                            {% if r.notes %}
+                                <div class="p-2 mb-3 rounded" style="background-color: #252525; border-left: 4px solid #e63946;">
+                                    <strong class="text-danger">📝 Notas de Evolución:</strong><br>{{ r.notes }}
+                                </div>
+                            {% endif %}
                             {% if r.indicaciones_tratamiento %}<strong>Indicaciones:</strong><br>{{ r.indicaciones_tratamiento }}<br>{% endif %}
                             {% if r.medications %}<strong class="mt-2 d-block">Medicación:</strong>{{ r.medications }}<br>{% endif %}
                             {% if r.conducta_medica %}<strong class="mt-2 d-block">Conducta:</strong>{{ r.conducta_medica }}{% endif %}
@@ -253,7 +258,7 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                <p class="text-light text-center py-3">No hay indicaciones registradas.</p>
+                <p class="text-light text-center py-3">No hay registros de evolución o indicaciones.</p>
                 {% endif %}
             </div>
         </div>
