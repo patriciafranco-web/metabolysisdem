@@ -73,20 +73,72 @@
         </div>
     </div>
 
-    <!-- PESTAÑAS DE NAVEGACIÓN SUPERIOR -->
+    <!-- PESTAÑAS DE NAVEGACIÓN SUPERIOR REORDENADAS -->
     <ul class="nav nav-pills mb-4" id="patientTab" role="tablist">
-        <li class="nav-item"><button class="nav-link active" id="antropometria-tab" data-bs-toggle="pill" data-bs-target="#antropometria" type="button" role="tab">⚖️ Antropometría</button></li>
+        <li class="nav-item"><button class="nav-link active" id="wordnotes-tab" data-bs-toggle="pill" data-bs-target="#wordnotes" type="button" role="tab">📄 Notas de Word</button></li>
+        <li class="nav-item"><button class="nav-link" id="indicaciones-tab" data-bs-toggle="pill" data-bs-target="#indicaciones" type="button" role="tab">📚 Historial de Indicaciones</button></li>
+        <li class="nav-item"><button class="nav-link" id="antropometria-tab" data-bs-toggle="pill" data-bs-target="#antropometria" type="button" role="tab">⚖️ Antropometría</button></li>
         <li class="nav-item"><button class="nav-link" id="laboratorios-tab" data-bs-toggle="pill" data-bs-target="#laboratorios" type="button" role="tab">🧪 Laboratorios</button></li>
         <li class="nav-item"><button class="nav-link" id="estudios-tab" data-bs-toggle="pill" data-bs-target="#estudios" type="button" role="tab">📋 Estudios / Ecografías</button></li>
-        <li class="nav-item"><button class="nav-link" id="indicaciones-tab" data-bs-toggle="pill" data-bs-target="#indicaciones" type="button" role="tab">📚 Historial de Indicaciones</button></li>
-        <li class="nav-item"><button class="nav-link" id="wordnotes-tab" data-bs-toggle="pill" data-bs-target="#wordnotes" type="button" role="tab">📄 Notas de Word</button></li>
         <li class="nav-item"><button class="nav-link" id="fotos-tab" data-bs-toggle="pill" data-bs-target="#fotos" type="button" role="tab">📸 Galería y Estudios</button></li>
     </ul>
 
     <!-- CONTENIDO DE LAS PESTAÑAS -->
     <div class="tab-content" id="patientTabContent">
+        <!-- Notas de Word / Historial Importado (PRIMERA) -->
+        <div class="tab-pane fade show active" id="wordnotes" role="tabpanel">
+            <div class="card p-4 shadow-lg rounded-4">
+                <h5 class="section-title text-info">📄 Historial y Notas Importadas de Word</h5>
+                {% set word_records = patient.records | selectattr('notes') | list %}
+                {% if word_records %}
+                    {% for r in word_records %}
+                    <div class="card bg-dark border-secondary p-3 mb-3">
+                        <div class="d-flex justify-content-between text-warning mb-2">
+                            <strong>Importado el: {{ r.date }}</strong>
+                            <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" onsubmit="return confirm('¿Segura de borrar este documento importado?');" class="m-0">
+                                <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2">🗑️ Eliminar</button>
+                            </form>
+                        </div>
+                        <div class="text-white" style="white-space: pre-line; font-size: 1rem; line-height: 1.6;">{{ r.notes }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-muted text-center py-3">No hay documentos de Word importados todavía para este paciente.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Historial de Indicaciones y Evolución (SEGUNDA) -->
+        <div class="tab-pane fade" id="indicaciones" role="tabpanel">
+            <div class="card p-4 shadow-lg rounded-4">
+                <h5 class="section-title">📚 Archivo Histórico de Evolución e Indicaciones</h5>
+                {% if valid_records %}
+                    {% for r in valid_records | reverse %}
+                    <div class="card bg-dark border-secondary p-3 mb-3">
+                        <div class="d-flex justify-content-between text-warning mb-2">
+                            <strong>Control del: {{ r.date }}</strong>
+                            {% if r.proximo_control %}<span>Próximo control: {{ r.proximo_control }}</span>{% endif %}
+                        </div>
+                        <div class="text-white" style="white-space: pre-line;">
+                            {% if r.notes %}
+                                <div class="p-2 mb-3 rounded" style="background-color: #252525; border-left: 4px solid #e63946;">
+                                    <strong class="text-danger">📝 Notas de Evolución:</strong><br>{{ r.notes }}
+                                </div>
+                            {% endif %}
+                            {% if r.indicaciones_tratamiento %}<strong>Indicaciones:</strong><br>{{ r.indicaciones_tratamiento }}<br>{% endif %}
+                            {% if r.medications %}<strong class="mt-2 d-block">Medicación:</strong>{{ r.medications }}<br>{% endif %}
+                            {% if r.conducta_medica %}<strong class="mt-2 d-block">Conducta:</strong>{{ r.conducta_medica }}{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-light text-center py-3">No hay registros de evolución o indicaciones.</p>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Antropometría -->
-        <div class="tab-pane fade show active" id="antropometria" role="tabpanel">
+        <div class="tab-pane fade" id="antropometria" role="tabpanel">
             <div class="card p-4 shadow-lg rounded-4">
                 <h5 class="section-title">Historial Antropométrico y Evolución</h5>
                 {% if valid_records %}
@@ -150,49 +202,43 @@
             </div>
         </div>
 
-        <!-- Laboratorios -->
+        <!-- Laboratorios (Vista detallada en tarjetas para no recortar nada) -->
         <div class="tab-pane fade" id="laboratorios" role="tabpanel">
             <div class="card p-4 shadow-lg rounded-4">
-                <h5 class="section-title">Historial de Laboratorios y Bioquímica</h5>
+                <h5 class="section-title">🧪 Historial Detallado de Laboratorios y Bioquímica</h5>
                 {% if valid_records %}
-                <div class="table-responsive">
-                    <table class="table table-dark table-striped table-hover align-middle text-center small">
-                        <thead>
-                            <tr>
-                                <th>Fecha Consulta</th>
-                                <th>Fecha Lab</th>
-                                <th>Glicemia</th>
-                                <th>Insulina</th>
-                                <th>HbA1c</th>
-                                <th>HOMA-IR</th>
-                                <th>Triglicéridos</th>
-                                <th>Col. Tot</th>
-                                <th>HDL</th>
-                                <th>LDL</th>
-                                <th>TSH</th>
-                                <th>Otros Labs</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in valid_records %}
-                            <tr>
-                                <td>{{ r.date }}</td>
-                                <td class="text-warning">{{ r.lab_date or 'Misma fecha' }}</td>
-                                <td>{{ r.glucose or '-' }}</td>
-                                <td>{{ r.insulin or '-' }}</td>
-                                <td>{{ r.hba1c or '-' }}</td>
-                                <td>{{ r.homair or '-' }}</td>
-                                <td>{{ r.triglycerides or '-' }}</td>
-                                <td>{{ r.cholesterol_tot or '-' }}</td>
-                                <td>{{ r.hdl or '-' }}</td>
-                                <td>{{ r.ldl or '-' }}</td>
-                                <td>{{ r.tsh or '-' }}</td>
-                                <td class="text-warning small">{{ r.otros_laboratorios or '-' }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                    {% for r in valid_records | reverse %}
+                    <div class="card bg-dark border-secondary p-3 mb-3">
+                        <div class="d-flex justify-content-between text-warning mb-2 border-bottom border-secondary pb-2">
+                            <strong>Fecha de Consulta: {{ r.date }}</strong>
+                            <span>Fecha de Laboratorio: <strong class="text-white">{{ r.lab_date or 'Misma fecha' }}</strong></span>
+                        </div>
+                        <div class="row g-2 text-white small mb-2">
+                            <div class="col-md-3"><strong>Glicemia:</strong> {{ r.glucose or '-' }}</div>
+                            <div class="col-md-3"><strong>Insulina:</strong> {{ r.insulin or '-' }}</div>
+                            <div class="col-md-3"><strong>HbA1c:</strong> {{ r.hba1c or '-' }} %</div>
+                            <div class="col-md-3"><strong>HOMA-IR:</strong> {{ r.homair or '-' }}</div>
+                            <div class="col-md-3"><strong>Triglicéridos:</strong> {{ r.triglycerides or '-' }}</div>
+                            <div class="col-md-3"><strong>Colesterol Tot.:</strong> {{ r.cholesterol_tot or '-' }}</div>
+                            <div class="col-md-3"><strong>HDL:</strong> {{ r.hdl or '-' }}</div>
+                            <div class="col-md-3"><strong>LDL:</strong> {{ r.ldl or '-' }}</div>
+                            <div class="col-md-3"><strong>VLDL:</strong> {{ r.vldl or '-' }}</div>
+                            <div class="col-md-3"><strong>Ácido Úrico:</strong> {{ r.uric_acid or '-' }}</div>
+                            <div class="col-md-3"><strong>GOT:</strong> {{ r.got or '-' }}</div>
+                            <div class="col-md-3"><strong>GPT:</strong> {{ r.gpt or '-' }}</div>
+                            <div class="col-md-3"><strong>FA:</strong> {{ r.fa or '-' }}</div>
+                            <div class="col-md-3"><strong>TSH:</strong> {{ r.tsh or '-' }}</div>
+                            <div class="col-md-3"><strong>T4:</strong> {{ r.t4 or '-' }}</div>
+                            <div class="col-md-3"><strong>T3:</strong> {{ r.t3 or '-' }}</div>
+                        </div>
+                        {% if r.otros_laboratorios %}
+                        <div class="mt-2 p-2 rounded" style="background-color: #252525; border: 1px dashed #555;">
+                            <strong class="text-warning">🧪 Otros Laboratorios / Perfil Renal, Hepático, Vitamina D, etc.:</strong>
+                            <div class="text-white mt-1" style="white-space: pre-line;">{{ r.otros_laboratorios }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
                 {% else %}
                 <p class="text-light text-center py-3">No hay laboratorios registrados.</p>
                 {% endif %}
@@ -230,58 +276,6 @@
                 </div>
                 {% else %}
                 <p class="text-light text-center py-3">No hay estudios registrados.</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Historial de Indicaciones y Evolución -->
-        <div class="tab-pane fade" id="indicaciones" role="tabpanel">
-            <div class="card p-4 shadow-lg rounded-4">
-                <h5 class="section-title">📚 Archivo Histórico de Evolución e Indicaciones</h5>
-                {% if valid_records %}
-                    {% for r in valid_records | reverse %}
-                    <div class="card bg-dark border-secondary p-3 mb-3">
-                        <div class="d-flex justify-content-between text-warning mb-2">
-                            <strong>Control del: {{ r.date }}</strong>
-                            {% if r.proximo_control %}<span>Próximo control: {{ r.proximo_control }}</span>{% endif %}
-                        </div>
-                        <div class="text-white" style="white-space: pre-line;">
-                            {% if r.notes %}
-                                <div class="p-2 mb-3 rounded" style="background-color: #252525; border-left: 4px solid #e63946;">
-                                    <strong class="text-danger">📝 Notas de Evolución:</strong><br>{{ r.notes }}
-                                </div>
-                            {% endif %}
-                            {% if r.indicaciones_tratamiento %}<strong>Indicaciones:</strong><br>{{ r.indicaciones_tratamiento }}<br>{% endif %}
-                            {% if r.medications %}<strong class="mt-2 d-block">Medicación:</strong>{{ r.medications }}<br>{% endif %}
-                            {% if r.conducta_medica %}<strong class="mt-2 d-block">Conducta:</strong>{{ r.conducta_medica }}{% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <p class="text-light text-center py-3">No hay registros de evolución o indicaciones.</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Notas de Word / Historial Importado -->
-        <div class="tab-pane fade" id="wordnotes" role="tabpanel">
-            <div class="card p-4 shadow-lg rounded-4">
-                <h5 class="section-title text-info">📄 Historial y Notas Importadas de Word</h5>
-                {% set word_records = patient.records | selectattr('notes') | list %}
-                {% if word_records %}
-                    {% for r in word_records %}
-                    <div class="card bg-dark border-secondary p-3 mb-3">
-                        <div class="d-flex justify-content-between text-warning mb-2">
-                            <strong>Importado el: {{ r.date }}</strong>
-                            <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" onsubmit="return confirm('¿Segura de borrar este documento importado?');" class="m-0">
-                                <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2">🗑️ Eliminar</button>
-                            </form>
-                        </div>
-                        <div class="text-white" style="white-space: pre-line; font-size: 1rem; line-height: 1.6;">{{ r.notes }}</div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <p class="text-muted text-center py-3">No hay documentos de Word importados todavía para este paciente.</p>
                 {% endif %}
             </div>
         </div>
