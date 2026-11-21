@@ -299,11 +299,13 @@ db = SQLAlchemy(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
+    full_name = db.Column(db.String(100), nullable=True)
     password_hash = db.Column(db.Text, nullable=False)
     expiry_date = db.Column(db.String(20), nullable=True)
 
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     full_name = db.Column(db.String(100), nullable=True)
     ci = db.Column(db.String(20), unique=True, nullable=True)
     birth_date = db.Column(db.String(20))
@@ -506,9 +508,21 @@ def recalculate_deltas(patient_id):
 with app.app_context():
     db.create_all()
 
-    # Migración segura de columna platelets (no borra datos)
+    # Migraciones seguras (no borran datos)
     try:
         db.session.execute(text('ALTER TABLE medical_record ADD COLUMN platelets FLOAT'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        db.session.execute(text('ALTER TABLE patient ADD COLUMN user_id INTEGER'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        db.session.execute(text('ALTER TABLE user ADD COLUMN full_name VARCHAR(100)'))
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -516,8 +530,11 @@ with app.app_context():
     admin_user = User.query.filter_by(username='admin').first()
     if not admin_user:
         hashed_pw = generate_password_hash('metabosys2026', method='pbkdf2:sha256')
-        admin = User(username='admin', password_hash=hashed_pw, expiry_date=None)
-        db.session.add(admin)
+        admin_user = User(username='admin', full_name='Administrador', password_hash=hashed_pw, expiry_date=None)
+        db.session.add(admin_user)
+        db.session.commit()
+    elif not admin_user.full_name:
+        admin_user.full_name = 'Administrador'
         db.session.commit()
 
     # Extensión única de +10 días para alejandra.muller (evita sumar 10 días en cada reinicio)
@@ -526,12 +543,15 @@ with app.app_context():
     initial_exp = (date.today() + timedelta(days=20)).strftime('%Y-%m-%d')
     if not dra_muller:
         hashed_pw = generate_password_hash('dra12345', method='pbkdf2:sha256')
-        dra = User(username='alejandra.muller', password_hash=hashed_pw, expiry_date=initial_exp)
-        db.session.add(dra)
+        dra_muller = User(username='alejandra.muller', full_name='Dra. Alejandra Müller', password_hash=hashed_pw, expiry_date=initial_exp)
+        db.session.add(dra_muller)
         db.session.commit()
         with open(EXT_TAG_FILE, 'w') as f:
             f.write('applied')
     else:
+        if not dra_muller.full_name:
+            dra_muller.full_name = 'Dra. Alejandra Müller'
+            db.session.commit()
         if not os.path.exists(EXT_TAG_FILE):
             try:
                 base_date = datetime.strptime(dra_muller.expiry_date, '%Y-%m-%d').date() if dra_muller.expiry_date else date.today()
@@ -543,6 +563,43 @@ with app.app_context():
             db.session.commit()
             with open(EXT_TAG_FILE, 'w') as f:
                 f.write('applied')
+
+    # Asignar pacientes existentes sin propietario a la Dra. Alejandra Müller para aislar historiales
+    if dra_muller:
+        Patient.query.filter(Patient.user_id.is_(None)).update({Patient.user_id: dra_muller.id}, synchronize_session=False)
+        db.session.commit()
+
+    # Usuario de prueba de 7 días para Dra. Camila Chaparro (agenda e historial totalmente separados)
+    dra_camila = User.query.filter_by(username='camila.chaparro').first()
+    if not dra_camila:
+        hashed_pw_camila = generate_password_hash('camila12345', method='pbkdf2:sha256')
+        exp_camila = (date.today() + timedelta(days=7)).strftime('%Y-%m-%d')
+        dra_camila = User(
+            username='camila.chaparro',
+            full_name='Dra. Camila Chaparro',
+            password_hash=hashed_pw_camila,
+            expiry_date=exp_camila
+        )
+        db.session.add(dra_camila)
+        db.session.commit()
+    elif not dra_camila.full_name:
+        dra_camila.full_name = 'Dra. Camila Chaparro'
+        db.session.commit()
+
+def get_current_user():
+    uid = session.get('user_id')
+    return User.query.get(uid) if uid else None
+
+def get_patient_for_current_user(patient_id):
+    patient = Patient.query.get_or_404(patient_id)
+    current_user = get_current_user()
+    if not current_user:
+        return None
+    if current_user.username == 'admin':
+        return patient
+    if patient.user_id != current_user.id:
+        return None
+    return patient
 
 def login_required(f):
     @wraps(f)
@@ -583,8 +640,12 @@ def login():
             session['user_id'] = user.id
             session['username'] = username
             
-            if username == 'alejandra.muller':
+            if user.full_name:
+                session['user_name'] = user.full_name
+            elif username == 'alejandra.muller':
                 session['user_name'] = 'Dra. Alejandra Müller'
+            elif username == 'camila.chaparro':
+                session['user_name'] = 'Dra. Camila Chaparro'
             else:
                 session['user_name'] = 'Administrador'
                 
@@ -601,19 +662,32 @@ def logout():
 @app.route('/')
 @login_required
 def index():
+    current_user = get_current_user()
     search_query = request.args.get('q', '').strip()
     sanatorio_filter = request.args.get('sanatorio', '').strip()
+
     query = Patient.query
-    if sanatorio_filter: query = query.filter_by(sanatorio=sanatorio_filter)
+    if current_user and current_user.username != 'admin':
+        query = query.filter_by(user_id=current_user.id)
+
+    if sanatorio_filter:
+        query = query.filter_by(sanatorio=sanatorio_filter)
     if search_query:
         query = query.filter((Patient.full_name.ilike(f'%{search_query}%')) | (Patient.ci.ilike(f'%{search_query}%')))
+
     patients = query.all()
-    sanatorios = [s[0] for s in db.session.query(Patient.sanatorio).distinct().all() if s[0]]
+
+    base_san = Patient.query
+    if current_user and current_user.username != 'admin':
+        base_san = base_san.filter_by(user_id=current_user.id)
+    sanatorios = [s[0] for s in base_san.with_entities(Patient.sanatorio).distinct().all() if s[0]]
+
     return render_template('index.html', patients=patients, sanatorios=sanatorios, current_sanatorio=sanatorio_filter, search_query=search_query)
 
 @app.route('/patient/new', methods=['GET', 'POST'])
 @login_required
 def new_patient():
+    current_user = get_current_user()
     if request.method == 'POST':
         ci_input = request.form.get('ci', '').strip()
         if not ci_input:
@@ -626,6 +700,7 @@ def new_patient():
         genero_input = request.form.get('gender') or 'Mujer'
 
         patient = Patient(
+            user_id=current_user.id if current_user else None,
             full_name=nombre_input,
             ci=ci_input,
             birth_date=request.form.get('birth_date'),
@@ -664,7 +739,10 @@ def new_patient():
 @app.route('/patient/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_patient(id):
-    patient = Patient.query.get_or_404(id)
+    patient = get_patient_for_current_user(id)
+    if not patient:
+        flash("No tiene permisos para acceder a este paciente.", "warning")
+        return redirect(url_for('index'))
     if request.method == 'POST':
         ci_input = request.form.get('ci', '').strip()
         existing = Patient.query.filter_by(ci=ci_input).first()
@@ -710,7 +788,10 @@ def edit_patient(id):
 @app.route('/patient/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_patient(id):
-    patient = Patient.query.get_or_404(id)
+    patient = get_patient_for_current_user(id)
+    if not patient:
+        flash("No tiene permisos para eliminar este paciente.", "warning")
+        return redirect(url_for('index'))
     db.session.delete(patient)
     db.session.commit()
     return redirect(url_for('index'))
@@ -718,7 +799,10 @@ def delete_patient(id):
 @app.route('/patient/<int:id>', methods=['GET', 'POST'])
 @login_required
 def patient_detail(id):
-    patient = Patient.query.get_or_404(id)
+    patient = get_patient_for_current_user(id)
+    if not patient:
+        flash("No tiene permisos para acceder a este paciente.", "warning")
+        return redirect(url_for('index'))
     all_records = sorted(patient.records, key=lambda x: (x.date or '', x.id), reverse=True)
     today_str = date.today().strftime('%Y-%m-%d')
 
@@ -831,7 +915,10 @@ def patient_detail(id):
 @app.route('/patient/import_docx/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
 def import_docx(patient_id):
-    patient = Patient.query.get_or_404(patient_id)
+    patient = get_patient_for_current_user(patient_id)
+    if not patient:
+        flash("No tiene permisos para acceder a este paciente.", "warning")
+        return redirect(url_for('index'))
     preview_text = request.args.get('preview_text', '')
     filename_saved = request.args.get('filename_saved', '')
 
@@ -957,7 +1044,10 @@ def import_docx(patient_id):
 @app.route('/record/new/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
 def new_record(patient_id):
-    patient = Patient.query.get_or_404(patient_id)
+    patient = get_patient_for_current_user(patient_id)
+    if not patient:
+        flash("No tiene permisos para acceder a este paciente.", "warning")
+        return redirect(url_for('index'))
     if request.method == 'POST':
         record = MedicalRecord(
             patient_id=patient.id,
@@ -1047,7 +1137,10 @@ def new_record(patient_id):
 @login_required
 def edit_record(id):
     record = MedicalRecord.query.get_or_404(id)
-    patient = record.patient
+    patient = get_patient_for_current_user(record.patient_id)
+    if not patient:
+        flash("No tiene permisos para editar este registro.", "warning")
+        return redirect(url_for('index'))
     if request.method == 'POST':
         record.date = request.form['date']
         record.lab_date = request.form.get('lab_date')
@@ -1124,6 +1217,10 @@ def edit_record(id):
 @login_required
 def delete_record(id):
     record = MedicalRecord.query.get_or_404(id)
+    patient = get_patient_for_current_user(record.patient_id)
+    if not patient:
+        flash("No tiene permisos para eliminar este registro.", "warning")
+        return redirect(url_for('index'))
     patient_id = record.patient_id
     db.session.delete(record)
     db.session.commit()
@@ -1133,7 +1230,10 @@ def delete_record(id):
 @app.route('/treatment/edit/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
 def edit_treatment(patient_id):
-    patient = Patient.query.get_or_404(patient_id)
+    patient = get_patient_for_current_user(patient_id)
+    if not patient:
+        flash("No tiene permisos para acceder a este paciente.", "warning")
+        return redirect(url_for('index'))
     last_record = MedicalRecord.query.filter_by(patient_id=patient.id).order_by(MedicalRecord.id.desc()).first()
     
     if request.method == 'POST':
@@ -1173,6 +1273,7 @@ def edit_treatment(patient_id):
 @app.route('/export/excel')
 @login_required
 def export_excel():
+    current_user = get_current_user()
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
@@ -1185,7 +1286,12 @@ def export_excel():
         'Fósforo', 'Cloro', 'Plaquetas', 'Otros Laboratorios', 'Eco Abdominal', 'Eco Tiroidea', 'Otros Estudios', 'Evolución / Notas', 'Indicaciones / Tratamiento', 'Medicación', 
         'Próximo Control', 'HOMA-IR', 'FIB-4', 'Cintura/Altura', 'Conducta Médica'
     ])
-    patients = Patient.query.all()
+    if current_user and current_user.username == 'admin':
+        patients = Patient.query.all()
+    elif current_user:
+        patients = Patient.query.filter_by(user_id=current_user.id).all()
+    else:
+        patients = []
     for p in patients:
         valid_recs = sorted([r for r in p.records if r.weight is not None and r.weight > 0], key=lambda x: x.date)
         if valid_recs:
@@ -1208,7 +1314,10 @@ def export_excel():
 @app.route('/report/pdf/<int:patient_id>')
 @login_required
 def generate_pdf(patient_id):
-    patient = Patient.query.get_or_404(patient_id)
+    patient = get_patient_for_current_user(patient_id)
+    if not patient:
+        flash("No tiene permisos para generar el informe de este paciente.", "warning")
+        return redirect(url_for('index'))
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20)
     story = []
