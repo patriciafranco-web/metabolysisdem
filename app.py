@@ -401,18 +401,30 @@ with app.app_context():
         admin = User(username='admin', password_hash=hashed_pw, expiry_date=None)
         db.session.add(admin)
         db.session.commit()
-        
+
+    # Extensión única de +10 días para alejandra.muller (evita sumar 10 días en cada reinicio)
+    EXT_TAG_FILE = os.path.join(DATA_DIR, '.dra_muller_ext_10d')
     dra_muller = User.query.filter_by(username='alejandra.muller').first()
-    ten_days_later = (date.today() + timedelta(days=10)).strftime('%Y-%m-%d')
+    initial_exp = (date.today() + timedelta(days=20)).strftime('%Y-%m-%d')
     if not dra_muller:
         hashed_pw = generate_password_hash('dra12345', method='pbkdf2:sha256')
-        dra = User(username='alejandra.muller', password_hash=hashed_pw, expiry_date=ten_days_later)
+        dra = User(username='alejandra.muller', password_hash=hashed_pw, expiry_date=initial_exp)
         db.session.add(dra)
         db.session.commit()
+        with open(EXT_TAG_FILE, 'w') as f:
+            f.write('applied')
     else:
-        if not dra_muller.expiry_date:
-            dra_muller.expiry_date = ten_days_later
+        if not os.path.exists(EXT_TAG_FILE):
+            try:
+                base_date = datetime.strptime(dra_muller.expiry_date, '%Y-%m-%d').date() if dra_muller.expiry_date else date.today()
+            except Exception:
+                base_date = date.today()
+            if base_date < date.today():
+                base_date = date.today()
+            dra_muller.expiry_date = (base_date + timedelta(days=10)).strftime('%Y-%m-%d')
             db.session.commit()
+            with open(EXT_TAG_FILE, 'w') as f:
+                f.write('applied')
 
 def login_required(f):
     @wraps(f)
@@ -426,7 +438,7 @@ def login_required(f):
                 exp_date = datetime.strptime(user.expiry_date, '%Y-%m-%d').date()
                 if date.today() > exp_date:
                     session.clear()
-                    return render_template('login.html', error='Su periodo de prueba de 10 días ha expirado.')
+                    return render_template('login.html', error='Su periodo de prueba ha expirado.')
             except:
                 pass
 
@@ -446,7 +458,7 @@ def login():
                 try:
                     exp_date = datetime.strptime(user.expiry_date, '%Y-%m-%d').date()
                     if date.today() > exp_date:
-                        return render_template('login.html', error='Su periodo de prueba de 10 días ha expirado.')
+                        return render_template('login.html', error='Su periodo de prueba ha expirado.')
                 except:
                     pass
 
@@ -996,6 +1008,9 @@ def generate_pdf(patient_id):
     section_style = ParagraphStyle('SectionHeading', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, alignment=1, spaceAfter=8, spaceBefore=10, textColor=colors.HexColor('#003366'))
     body_style = ParagraphStyle('DocBody', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=13, textColor=colors.HexColor('#003366'))
     contact_style = ParagraphStyle('ContactInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=8, alignment=1, textColor=colors.HexColor('#555555'), spaceAfter=15)
+
+    nombre_profesional = session.get('user_name') or 'Dra. Alejandra Müller'
+    encabezado_sistema = f"<b>Plataforma Metabolisys</b> | {nombre_profesional}"
     
     logo_path = os.path.join(app.config['UPLOAD_FOLDER'].replace('/var/data/uploads', 'static'), 'logo.png')
     if not os.path.exists(logo_path): logo_path = os.path.join('static', 'logo.png')
@@ -1003,10 +1018,10 @@ def generate_pdf(patient_id):
     if os.path.exists(logo_path):
         story.append(RLImage(logo_path, width=200, height=70))
         story.append(Spacer(1, 5))
-        story.append(Paragraph("<b>CENTRO CLÍNICO METABÓLICO Y NUTRICIONAL</b> | Plataforma Metabolisys", contact_style))
+        story.append(Paragraph(encabezado_sistema, contact_style))
         story.append(Spacer(1, 10))
     else:
-        story.append(Paragraph("<b>CENTRO CLÍNICO METABÓLICO Y NUTRICIONAL</b> | Plataforma Metabolisys", contact_style))
+        story.append(Paragraph(encabezado_sistema, contact_style))
         story.append(Spacer(1, 15))
     
     valid_records = sorted([r for r in patient.records if r.weight is not None and r.weight > 0], key=lambda x: x.date)
