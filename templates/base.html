@@ -32,10 +32,12 @@
                     <span class="brand-mark fw-bold fs-5">Metabolisys</span>
                 </a>
                 <div class="border-start border-secondary ps-3 text-warning fw-semibold fs-6">
-                    {% if session.get('user_name') %}
+                    {% if session.get('username') == 'alejandra.muller' %}
+                        Dra. Alejandra Müller
+                    {% elif session.get('user_name') %}
                         {{ session.get('user_name') }}
                     {% else %}
-                        Sistema Clinico Metabolico
+                        Dra. Alejandra Müller
                     {% endif %}
                 </div>
             </div>
