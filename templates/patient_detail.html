@@ -6,17 +6,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #121212 !important; color: #f8f9fa !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { background-color: #1e1e1e !important; border: 1px solid #3c3c3c !important; color: #ffffff !important; }
-        .table { color: #ffffff !important; border-color: #444 !important; }
-        .table-dark { background-color: #1e1e1e !important; color: #ffffff !important; }
-        .nav-tabs { border-bottom: 1px solid #444; }
-        .nav-tabs .nav-link { color: #ccc; background-color: #1a1a1a; border: 1px solid #3a3a3a; margin-right: 4px; font-weight: 600; }
-        .nav-tabs .nav-link.active { background-color: #e63946 !important; color: #fff !important; border-color: #e63946 !important; }
-        .label-mini { color: #ffb703; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
+        body {
+            background-color: #121212 !important;
+            color: #f8f9fa !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .brand-title {
+            color: #e63946;
+            letter-spacing: 0.06em;
+            font-size: 1.05rem;
+        }
+        .card {
+            background-color: #1e1e1e !important;
+            border: 1px solid #383838 !important;
+            color: #ffffff !important;
+            border-radius: 8px;
+        }
+        .table {
+            color: #ffffff !important;
+            border-color: #424242 !important;
+        }
+        .table-dark {
+            background-color: #1e1e1e !important;
+            color: #ffffff !important;
+        }
+        .nav-tabs {
+            border-bottom: 1px solid #3c3c3c;
+        }
+        .nav-tabs .nav-link {
+            color: #c7cdd4;
+            background-color: #181818;
+            border: 1px solid #333;
+            margin-right: 4px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            padding: 8px 14px;
+            border-radius: 6px 6px 0 0;
+        }
+        .nav-tabs .nav-link:hover {
+            color: #ffffff;
+            border-color: #555;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #e63946 !important;
+            color: #fff !important;
+            border-color: #e63946 !important;
+        }
+        .label-mini {
+            color: #ffb703;
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
         .ultima-consulta-box {
             background-color: #141414;
-            border: 1px solid #444;
+            border: 1px solid #3c3c3c;
             border-radius: 6px;
             padding: 12px;
             height: 330px;
@@ -41,9 +86,65 @@
             background-color: #fff9d6 !important;
             box-shadow: 0 0 0 0.2rem rgba(224, 180, 34, 0.35) !important;
         }
-        .patient-img { width: 100%; height: 220px; object-fit: cover; border-radius: 8px; border: 1px solid #444; }
-        .planilla-table th { white-space: nowrap; font-size: 0.78rem; }
-        .planilla-table td { font-size: 0.82rem; }
+        .patient-img {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        .planilla-table th {
+            white-space: nowrap;
+            font-size: 0.78rem;
+        }
+        .planilla-table td {
+            font-size: 0.82rem;
+        }
+        .btn-voice {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 183, 3, 0.45);
+            background-color: rgba(255, 183, 3, 0.08);
+            color: #ffd166;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-voice:hover {
+            background-color: rgba(255, 183, 3, 0.16);
+            border-color: rgba(255, 183, 3, 0.75);
+            color: #fff;
+        }
+        .btn-voice.is-recording {
+            border-color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.16);
+            color: #fca5a5;
+        }
+        .voice-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: #94a3b8;
+            display: inline-block;
+        }
+        .btn-voice.is-recording .voice-dot {
+            background-color: #ef4444;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.25);
+            animation: voicePulse 1.3s infinite;
+        }
+        @keyframes voicePulse {
+            0% { transform: scale(0.95); opacity: 1; }
+            70% { transform: scale(1.15); opacity: 0.75; }
+            100% { transform: scale(0.95); opacity: 1; }
+        }
+        .voice-status-text {
+            font-size: 0.76rem;
+            color: #adb5bd;
+        }
     </style>
 </head>
 <body class="py-3">
@@ -51,16 +152,16 @@
 
     <!-- CABECERA COMPACTA -->
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
-            <a href="{{ url_for('index') }}" class="btn btn-secondary btn-sm">⬅️ Pacientes</a>
-            <h4 class="text-danger fw-bold m-0">❤️ METABOLISYS</h4>
+        <div class="d-flex align-items-center gap-3">
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">Pacientes</a>
+            <span class="brand-title fw-bold m-0">METABOLISYS</span>
         </div>
         <div class="d-flex gap-2 flex-wrap align-items-center">
-            <a href="{{ url_for('edit_patient', id=patient.id) }}" class="btn btn-outline-warning btn-sm">✏️ Datos Paciente</a>
-            <a href="{{ url_for('import_docx', patient_id=patient.id) }}" class="btn btn-outline-info btn-sm">📄 Subir Word</a>
-            <a href="{{ url_for('generate_pdf', patient_id=patient.id) }}" class="btn btn-success btn-sm fw-bold">📄 Informe PDF</a>
-            <form action="{{ url_for('delete_patient', id=patient.id) }}" method="POST" onsubmit="return confirm('ATENCIÓN: ¿Está seguro de eliminar TODO el perfil de este paciente? Se borrará todo su historial y fotos.');" class="m-0">
-                <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar Paciente">🗑️</button>
+            <a href="{{ url_for('edit_patient', id=patient.id) }}" class="btn btn-outline-warning btn-sm">Datos Paciente</a>
+            <a href="{{ url_for('import_docx', patient_id=patient.id) }}" class="btn btn-outline-info btn-sm">Subir Word</a>
+            <a href="{{ url_for('generate_pdf', patient_id=patient.id) }}" class="btn btn-success btn-sm fw-semibold">Informe PDF</a>
+            <form action="{{ url_for('delete_patient', id=patient.id) }}" method="POST" onsubmit="return confirm('ATENCION: Esta seguro de eliminar TODO el perfil de este paciente? Se borrara todo su historial y fotos.');" class="m-0">
+                <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar Paciente">Eliminar</button>
             </form>
         </div>
     </div>
@@ -77,26 +178,26 @@
         {% endif %}
     {% endwith %}
 
-    <!-- PESTAÑAS SUPERIORES SIMPLES (ESTILO SANATORIO) -->
+    <!-- PESTANAS SUPERIORES -->
     <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="consulta-tab" data-bs-toggle="tab" data-bs-target="#consulta" type="button" role="tab">
-                ✍️ Consulta
+                Consulta
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="historia-tab" data-bs-toggle="tab" data-bs-target="#historia" type="button" role="tab">
-                📅 Historia Clínica ({{ all_records|length }})
+                Historia Clinica ({{ all_records|length }})
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="planilla-tab" data-bs-toggle="tab" data-bs-target="#planilla" type="button" role="tab">
-                📊 Planilla Automática (Peso / Labs / Estudios)
+                Planilla Automatica (Peso / Labs / Estudios)
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="fotos-tab" data-bs-toggle="tab" data-bs-target="#fotos" type="button" role="tab">
-                📸 Fotos ({{ patient.photos|length }})
+                Fotos ({{ patient.photos|length }})
             </button>
         </li>
     </ul>
@@ -104,7 +205,7 @@
     <div class="tab-content" id="mainTabsContent">
 
         <!-- ========================================================== -->
-        <!-- PESTAÑA 1: CONSULTA (PANTALLA DIVIDIDA SIN CAMBIAR PESTAÑAS) -->
+        <!-- PESTANA 1: CONSULTA (PANTALLA DIVIDIDA SIN CAMBIAR PESTANAS) -->
         <!-- ========================================================== -->
         <div class="tab-pane fade show active" id="consulta" role="tabpanel">
             <div class="row g-3">
@@ -120,12 +221,12 @@
                         </div>
                         <div class="row g-2 small">
                             <div class="col-4"><span class="label-mini">Nacimiento:</span><br>{{ patient.birth_date or 'N/D' }}</div>
-                            <div class="col-4"><span class="label-mini">Edad:</span><br>{{ patient.age }} años</div>
+                            <div class="col-4"><span class="label-mini">Edad:</span><br>{{ patient.age }} anos</div>
                             <div class="col-4"><span class="label-mini">Sexo:</span><br>{{ patient.gender }}</div>
                             <div class="col-6"><span class="label-mini">Sanatorio:</span><br>{{ patient.sanatorio }}</div>
-                            <div class="col-6"><span class="label-mini">Teléfono:</span><br>{{ patient.phone or 'N/D' }}</div>
+                            <div class="col-6"><span class="label-mini">Telefono:</span><br>{{ patient.phone or 'N/D' }}</div>
                             {% if patient.pathology_type %}
-                            <div class="col-12"><span class="label-mini">Patología:</span> {{ patient.pathology_type }}</div>
+                            <div class="col-12"><span class="label-mini">Patologia:</span> {{ patient.pathology_type }}</div>
                             {% endif %}
                             {% if patient.antecedentes_personales %}
                             <div class="col-12"><span class="label-mini">Ant. Personales:</span> {{ patient.antecedentes_personales }}</div>
@@ -136,10 +237,10 @@
                         </div>
                     </div>
 
-                    <!-- ABAJO IZQUIERDA: DATOS DE LA ÚLTIMA CONSULTA -->
+                    <!-- ABAJO IZQUIERDA: DATOS DE LA ULTIMA CONSULTA -->
                     <div class="card p-3 flex-grow-1">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="text-info fw-bold m-0">📌 Datos de la Última Consulta</h6>
+                            <h6 class="text-info fw-bold m-0">Datos de la Ultima Consulta</h6>
                             {% if last_record %}
                                 <span class="badge bg-info text-dark">{{ last_record.date }}</span>
                             {% endif %}
@@ -153,34 +254,46 @@
                                 {% if last_record.homair %}<span class="badge bg-dark border border-secondary">HOMA: {{ last_record.homair }}</span>{% endif %}
                                 {% if last_record.fib4 %}<span class="badge bg-dark border border-info text-info">FIB-4: {{ last_record.fib4 }}</span>{% endif %}
                             </div>
-                            <div class="ultima-consulta-box">{{ last_record.notes or last_record.indicaciones_tratamiento or 'Sin texto registrado en la última consulta.' }}</div>
+                            <div class="ultima-consulta-box">{{ last_record.notes or last_record.indicaciones_tratamiento or 'Sin texto registrado en la ultima consulta.' }}</div>
                         {% else %}
-                            <div class="ultima-consulta-box text-muted">Este paciente todavía no tiene consultas anteriores registradas.</div>
+                            <div class="ultima-consulta-box text-muted">Este paciente todavia no tiene consultas anteriores registradas.</div>
                         {% endif %}
                     </div>
 
                 </div>
 
-                <!-- COLUMNA DERECHA: CUADRO AMARILLO DE EXPEDIENTE DEL DÍA -->
+                <!-- COLUMNA DERECHA: CUADRO AMARILLO DE EXPEDIENTE DEL DIA -->
                 <div class="col-lg-7">
                     <div class="card p-3 h-100">
                         <form method="POST" action="{{ url_for('patient_detail', id=patient.id) }}" id="formConsultaRapida">
                             <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                                <h6 class="text-warning fw-bold m-0">✍️ Expediente del Día</h6>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <h6 class="text-warning fw-bold m-0">Expediente del Dia</h6>
+                                    <button type="button" id="btn-dictar" class="btn-voice" onclick="toggleDictado()">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                            <line x1="12" y1="19" x2="12" y2="22"></line>
+                                        </svg>
+                                        <span id="texto-btn-dictar">Dictar</span>
+                                        <span class="voice-dot"></span>
+                                    </button>
+                                    <span id="estado-dictado" class="voice-status-text"></span>
+                                </div>
                                 <div class="d-flex align-items-center gap-2">
                                     <label class="small text-light m-0">Fecha:</label>
                                     <input type="date" name="date" value="{{ today_str }}" class="form-control form-control-sm bg-dark text-white border-secondary" style="width: 150px;" required>
-                                    <a href="{{ url_for('new_record', patient_id=patient.id) }}" class="btn btn-outline-secondary btn-sm" title="Abrir formulario manual por campos">⚙️ Manual</a>
+                                    <a href="{{ url_for('new_record', patient_id=patient.id) }}" class="btn btn-outline-secondary btn-sm" title="Abrir formulario manual por campos">Manual</a>
                                 </div>
                             </div>
 
-                            <textarea name="nota_libre" rows="18" class="form-control cuadro-amarillo p-3 mb-3" required
-                                placeholder="Escribí todo de corrido en este cuadro...&#10;&#10;Ejemplo:&#10;PA 110/70, Peso 76.250 kg, Cintura 88 cm.&#10;Lab: GLI 109, HBA1C 6.8, COL 203, HDL 39, LDL 128, TG 145, GOT 22, GPT 25, FA 24, Plaquetas 240.&#10;Eco abdominal: esteatosis leve.&#10;&#10;PLAN:&#10;Seguir con Tirzepatida 7.5mg. Pedir lab completo + eco tiroidea."></textarea>
+                            <textarea id="nota_libre" name="nota_libre" rows="18" class="form-control cuadro-amarillo p-3 mb-3" required
+                                placeholder="Escribi o dicta todo de corrido en este cuadro...&#10;&#10;Ejemplo:&#10;PA 110/70, Peso 76.250 kg, Cintura 88 cm.&#10;Lab: GLI 109, HBA1C 6.8, COL 203, HDL 39, LDL 128, TG 145, GOT 22, GPT 25, FA 24, Plaquetas 240.&#10;Eco abdominal: esteatosis leve.&#10;&#10;PLAN:&#10;Seguir con Tirzepatida 7.5mg. Pedir lab completo + eco tiroidea."></textarea>
 
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <span class="small text-secondary">🤖 La IA detectará automáticamente peso, laboratorios, ecografías y plan para armar la planilla.</span>
+                                <span class="small text-secondary">Extraccion automatica de peso, laboratorios, ecografias y plan hacia la planilla.</span>
                                 <button type="submit" id="btnGuardarIA" class="btn btn-warning fw-bold text-dark px-4 py-2">
-                                    💾 Guardar y Clasificar con IA
+                                    Guardar y Clasificar con IA
                                 </button>
                             </div>
                         </form>
@@ -191,11 +304,11 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- PESTAÑA 2: HISTORIA CLÍNICA (FECHAS PARA ABRIR EN 1 CLIC)  -->
+        <!-- PESTANA 2: HISTORIA CLINICA (FECHAS PARA ABRIR EN 1 CLIC)  -->
         <!-- ========================================================== -->
         <div class="tab-pane fade" id="historia" role="tabpanel">
             <div class="card p-4">
-                <h5 class="text-warning mb-3">📅 Consultas Anteriores por Fecha</h5>
+                <h5 class="text-warning mb-3">Consultas Anteriores por Fecha</h5>
                 {% if all_records %}
                 <div class="accordion" id="accordionHistoria">
                     {% for r in all_records %}
@@ -214,9 +327,9 @@
                         <div id="rec{{ r.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionHistoria">
                             <div class="accordion-body bg-black text-light">
                                 <div class="d-flex justify-content-end gap-2 mb-2">
-                                    <a href="{{ url_for('edit_record', id=r.id) }}" class="btn btn-outline-warning btn-sm py-0">✏️ Editar campos</a>
-                                    <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" onsubmit="return confirm('¿Segura de borrar esta consulta?');" class="m-0">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm py-0">🗑️ Borrar</button>
+                                    <a href="{{ url_for('edit_record', id=r.id) }}" class="btn btn-outline-warning btn-sm py-0">Editar campos</a>
+                                    <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" onsubmit="return confirm('Segura de borrar esta consulta?');" class="m-0">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm py-0">Borrar</button>
                                     </form>
                                 </div>
                                 {% if r.notes %}
@@ -224,7 +337,7 @@
                                 {% else %}
                                     <div class="small">
                                         {% if r.indicaciones_tratamiento %}<strong>Indicaciones:</strong> {{ r.indicaciones_tratamiento }}<br>{% endif %}
-                                        {% if r.medications %}<strong>Medicación:</strong> {{ r.medications }}{% endif %}
+                                        {% if r.medications %}<strong>Medicacion:</strong> {{ r.medications }}{% endif %}
                                     </div>
                                 {% endif %}
                             </div>
@@ -233,18 +346,18 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-muted text-center py-4">No hay consultas registradas todavía.</p>
+                <p class="text-muted text-center py-4">No hay consultas registradas todavia.</p>
                 {% endif %}
             </div>
         </div>
 
         <!-- ========================================================== -->
-        <!-- PESTAÑA 3: PLANILLA AUTOMÁTICA (PESO / LABS / ESTUDIOS)    -->
+        <!-- PESTANA 3: PLANILLA AUTOMATICA (PESO / LABS / ESTUDIOS)    -->
         <!-- ========================================================== -->
         <div class="tab-pane fade" id="planilla" role="tabpanel">
             <div class="card p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                    <h5 class="text-info m-0">📊 Planilla Comparativa Automática (Extraída por IA)</h5>
+                    <h5 class="text-info m-0">Planilla Comparativa Automatica</h5>
                     {% if last_record %}
                     <div class="d-flex gap-2 flex-wrap small">
                         <span class="badge bg-dark border border-secondary px-2 py-1">ICA: {{ last_record.ica_value or 'N/D' }}</span>
@@ -277,7 +390,7 @@
                                 <th>TSH / T4</th>
                                 <th>Urea / Creat</th>
                                 <th>Otros Labs</th>
-                                <th>Ecografías y Estudios</th>
+                                <th>Ecografias y Estudios</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -326,19 +439,19 @@
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted text-center py-4">Aún no hay datos en la planilla comparativa.</p>
+                <p class="text-muted text-center py-4">Aun no hay datos en la planilla comparativa.</p>
                 {% endif %}
             </div>
         </div>
 
         <!-- ========================================================== -->
-        <!-- PESTAÑA 4: GALERÍA DE FOTOS                                -->
+        <!-- PESTANA 4: GALERIA DE FOTOS                                -->
         <!-- ========================================================== -->
         <div class="tab-pane fade" id="fotos" role="tabpanel">
             <div class="card p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="text-warning m-0">📸 Galería de Fotografías y Estudios Adjuntos</h5>
-                    <a href="{{ url_for('edit_treatment', patient_id=patient.id) }}" class="btn btn-outline-warning btn-sm">➕ Subir Foto</a>
+                    <h5 class="text-warning m-0">Galeria de Fotografias y Estudios Adjuntos</h5>
+                    <a href="{{ url_for('edit_treatment', patient_id=patient.id) }}" class="btn btn-outline-warning btn-sm">Subir Foto</a>
                 </div>
                 {% if patient.photos %}
                 <div class="row g-3">
@@ -368,9 +481,73 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+let recognition = null;
+let dictando = false;
+
+function toggleDictado() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const estado = document.getElementById('estado-dictado');
+    const boton = document.getElementById('btn-dictar');
+    const etiqueta = document.getElementById('texto-btn-dictar');
+    const textarea = document.getElementById('nota_libre');
+
+    if (!SpeechRecognition) {
+        estado.textContent = 'Disponible en Chrome o Edge';
+        return;
+    }
+
+    if (dictando && recognition) {
+        recognition.stop();
+        return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = 'es-PY';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+        dictando = true;
+        boton.classList.add('is-recording');
+        etiqueta.textContent = 'Detener';
+        estado.textContent = 'Escuchando...';
+    };
+
+    recognition.onresult = (event) => {
+        let nuevoTexto = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+                nuevoTexto += event.results[i][0].transcript + ' ';
+            }
+        }
+        if (textarea && nuevoTexto.trim()) {
+            const separador = textarea.value && !textarea.value.endsWith(' ') && !textarea.value.endsWith('\n') ? ' ' : '';
+            textarea.value += separador + nuevoTexto.trim();
+            textarea.scrollTop = textarea.scrollHeight;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    };
+
+    recognition.onerror = (event) => {
+        estado.textContent = event.error === 'not-allowed' ? 'Permiso de microfono denegado' : 'Error de microfono';
+    };
+
+    recognition.onend = () => {
+        dictando = false;
+        boton.classList.remove('is-recording');
+        etiqueta.textContent = 'Dictar';
+        estado.textContent = '';
+    };
+
+    recognition.start();
+}
+
 document.getElementById('formConsultaRapida').addEventListener('submit', function() {
+    if (dictando && recognition) {
+        recognition.stop();
+    }
     const btn = document.getElementById('btnGuardarIA');
-    btn.innerHTML = '🤖 Clasificando con IA y guardando...';
+    btn.innerHTML = 'Clasificando y guardando...';
     btn.disabled = true;
 });
 </script>
