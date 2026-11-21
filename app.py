@@ -65,7 +65,7 @@ def parse_int(value):
         return 0
 # ----------------------------------------
 
-# --- EXTRACTOR CLÍNICO CON IA (GEMINI / VERTEX AI) ---
+# --- EXTRACTOR CLÍNICO CON IA (GEMINI) ---
 def extraer_datos_con_ia(texto_consulta):
     api_key = os.environ.get('GEMINI_API_KEY', '').strip()
     if not api_key:
@@ -143,14 +143,15 @@ NOTA MÉDICA:
         }
     }
 
-    for modelo in ["gemini-2.5-flash", "gemini-2.0-flash"]:
-        if api_key.startswith("AQ."):
-            url = f"https://aiplatform.googleapis.com/v1/publishers/google/models/{modelo}:generateContent?key={api_key}"
-        else:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key
+    }
 
+    for modelo in ["gemini-2.5-flash", "gemini-2.0-flash"]:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
         try:
-            resp = requests.post(url, json=payload, timeout=25)
+            resp = requests.post(url, headers=headers, json=payload, timeout=25)
             if resp.status_code == 200:
                 raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 if raw_text.startswith("```"):
@@ -966,7 +967,7 @@ def export_excel():
                     r.proximo_control, r.homair, r.fib4, r.ica_value, r.conducta_medica
                 ])
         else:
-            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
     output.seek(0)
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=matriz_metabolica_pacientes.csv"})
 
