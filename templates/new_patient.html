@@ -6,32 +6,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { background-color: #1e1e1e; border: 1px solid #333; color: #fff; }
-        .form-control, .form-select { background-color: #2a2a2a; border: 1px solid #444; color: #fff; }
-        .form-control:focus, .form-select:focus { background-color: #333; border-color: #ff6b6b; color: #fff; box-shadow: none; }
-        .btn-primary { background-color: #e63946; border: none; }
-        .btn-primary:hover { background-color: #d90429; }
-        .section-title { color: #ff6b6b; border-bottom: 1px solid #333; padding-bottom: 5px; margin-top: 25px; margin-bottom: 15px; }
-        .form-check-input { background-color: #2a2a2a; border-color: #555; }
-        .form-check-input:checked { background-color: #e63946; border-color: #e63946; }
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .brand-title {
+            color: #e63946;
+            letter-spacing: 0.08em;
+        }
+        .card {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            color: #fff;
+        }
+        .form-control, .form-select {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: #333;
+            border-color: #ff6b6b;
+            color: #fff;
+            box-shadow: none;
+        }
+        .btn-primary {
+            background-color: #e63946;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #d90429;
+        }
+        .section-title {
+            color: #ff6b6b;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+        .form-check-input {
+            background-color: #2a2a2a;
+            border-color: #555;
+        }
+        .form-check-input:checked {
+            background-color: #e63946;
+            border-color: #e63946;
+        }
+        .field-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .btn-voice-mini {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 183, 3, 0.4);
+            background-color: rgba(255, 183, 3, 0.08);
+            color: #ffd166;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-voice-mini:hover {
+            background-color: rgba(255, 183, 3, 0.16);
+            color: #fff;
+        }
+        .btn-voice-mini.is-recording {
+            border-color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.16);
+            color: #fca5a5;
+        }
+        .voice-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #94a3b8;
+            display: inline-block;
+        }
+        .btn-voice-mini.is-recording .voice-dot {
+            background-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+            animation: voicePulse 1.3s infinite;
+        }
+        @keyframes voicePulse {
+            0% { transform: scale(0.95); opacity: 1; }
+            70% { transform: scale(1.15); opacity: 0.75; }
+            100% { transform: scale(0.95); opacity: 1; }
+        }
     </style>
 </head>
 <body class="py-5">
 <div class="container" style="max-width: 950px;">
     <div class="card p-4 shadow-lg rounded-4">
-        <h2 class="mb-2 text-center text-danger fw-bold">❤️ METABOLISYS</h2>
-        <h4 class="mb-4 text-center">Registro de Nuevo Paciente (Filiación y Antecedentes)</h4>
-        
+        <div class="brand-title mb-1 text-center fw-bold">METABOLISYS</div>
+        <h4 class="mb-4 text-center fw-normal">Registro de Nuevo Paciente (Filiacion y Antecedentes)</h4>
+
         <form method="POST">
-            <h5 class="section-title text-danger">1. Datos de Filiación</h5>
+            <h5 class="section-title">1. Datos de Filiacion</h5>
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Nombre y Apellido *</label>
                     <input type="text" class="form-control" name="full_name" required>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Cédula de Identidad (CI) *</label>
+                    <label class="form-label">Cedula de Identidad (CI) *</label>
                     <input type="text" class="form-control" name="ci" required>
                 </div>
                 <div class="col-md-4">
@@ -39,77 +126,130 @@
                     <input type="date" class="form-control" name="birth_date">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Edad (años) *</label>
+                    <label class="form-label">Edad (anos) *</label>
                     <input type="number" class="form-control" name="age" required>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Género *</label>
+                    <label class="form-label">Genero *</label>
                     <select class="form-select" name="gender" id="genderSelect" required onchange="toggleGenderFields()">
                         <option value="Mujer">Mujer</option>
                         <option value="Hombre">Hombre</option>
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Teléfono</label>
+                    <label class="form-label">Telefono</label>
                     <input type="text" class="form-control" name="phone">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Procedencia</label>
-                    <input type="text" class="form-control" name="procedencia" placeholder="Ej. Luque">
+                    <input type="text" class="form-control" name="procedencia" placeholder="Ej. Ciudad del Este">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Profesión</label>
+                    <label class="form-label">Profesion</label>
                     <input type="text" class="form-control" name="profession">
                 </div>
-                
-                <!-- NUEVOS CAMPOS SOLICITADOS POR LA DRA. SOFÍA -->
+
                 <div class="col-md-6">
-                    <label class="form-label fw-bold text-warning">Seguro Médico</label>
+                    <label class="form-label fw-bold text-warning">Seguro Medico</label>
                     <input type="text" class="form-control" name="seguro_medico" placeholder="Ej. San Roque / Copetrol">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-warning">Fecha de Inicio de Tratamiento</label>
-                    <input type="text" class="form-control" name="fecha_inicio_tratamiento" placeholder="Ej. Enero 2026">
+                    <input type="text" class="form-control" name="fecha_inicio_tratamiento" placeholder="Ej. Noviembre 2026">
                 </div>
-                <!-- FIN DE NUEVOS CAMPOS -->
 
                 <div class="col-md-6">
                     <label class="form-label">Sanatorio / Consultorio *</label>
                     <input type="text" class="form-control" name="sanatorio" required value="Consultorio Principal">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Tipo de Patología Principal</label>
+                    <label class="form-label">Tipo de Patologia Principal</label>
                     <input type="text" class="form-control" name="pathology_type" value="Diabetes / Obesidad">
                 </div>
             </div>
 
-            <h5 class="section-title text-danger">2. Antecedentes y Tratamiento</h5>
+            <h5 class="section-title">2. Antecedentes y Tratamiento</h5>
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Antecedentes Patológicos Familiares</label>
+                    <div class="field-header">
+                        <label class="form-label m-0">Antecedentes Patologicos Familiares</label>
+                        <button type="button" class="btn-voice-mini" data-target="antecedentes_familiares" onclick="toggleDictadoCampo(this)">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="22"></line>
+                            </svg>
+                            <span class="voice-label">Dictar</span>
+                            <span class="voice-dot"></span>
+                        </button>
+                    </div>
                     <textarea class="form-control text-white" name="antecedentes_familiares" rows="2"></textarea>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Antecedentes Patológicos Personales</label>
+                    <div class="field-header">
+                        <label class="form-label m-0">Antecedentes Patologicos Personales</label>
+                        <button type="button" class="btn-voice-mini" data-target="antecedentes_personales" onclick="toggleDictadoCampo(this)">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="22"></line>
+                            </svg>
+                            <span class="voice-label">Dictar</span>
+                            <span class="voice-dot"></span>
+                        </button>
+                    </div>
                     <textarea class="form-control text-white" name="antecedentes_personales" rows="2"></textarea>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Historial de Cirugías</label>
+                    <div class="field-header">
+                        <label class="form-label m-0">Historial de Cirugias</label>
+                        <button type="button" class="btn-voice-mini" data-target="historial_cirugias" onclick="toggleDictadoCampo(this)">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="22"></line>
+                            </svg>
+                            <span class="voice-label">Dictar</span>
+                            <span class="voice-dot"></span>
+                        </button>
+                    </div>
                     <textarea class="form-control text-white" name="historial_cirugias" rows="2"></textarea>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Alergia a algún Fármaco</label>
+                    <div class="field-header">
+                        <label class="form-label m-0">Alergia a algun Farmaco</label>
+                        <button type="button" class="btn-voice-mini" data-target="alergia_farmacos" onclick="toggleDictadoCampo(this)">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="22"></line>
+                            </svg>
+                            <span class="voice-label">Dictar</span>
+                            <span class="voice-dot"></span>
+                        </button>
+                    </div>
                     <textarea class="form-control text-white" name="alergia_farmacos" rows="2"></textarea>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Tratamiento Base / Medicación Actual</label>
+                    <div class="field-header">
+                        <label class="form-label m-0">Tratamiento Base / Medicacion Actual</label>
+                        <button type="button" class="btn-voice-mini" data-target="tratamiento_base" onclick="toggleDictadoCampo(this)">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="22"></line>
+                            </svg>
+                            <span class="voice-label">Dictar</span>
+                            <span class="voice-dot"></span>
+                        </button>
+                    </div>
                     <textarea class="form-control text-white" name="tratamiento_base" rows="2"></textarea>
                 </div>
             </div>
 
-            <!-- Sección Ginecológica condicional (Solo si es Mujer) -->
+            <!-- Seccion Ginecologica condicional (Solo si es Mujer) -->
             <div id="genderSection">
-                <h5 class="section-title text-danger">3. Datos Ginecológicos</h5>
+                <h5 class="section-title">3. Datos Ginecologicos</h5>
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label">Cantidad de Hijos</label>
@@ -120,24 +260,24 @@
                         <input type="text" class="form-control" name="menarca">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Menstruación Regular</label>
-                        <input type="text" class="form-control" name="menstruacion_regular" placeholder="Sí / No">
+                        <label class="form-label">Menstruacion Regular</label>
+                        <input type="text" class="form-control" name="menstruacion_regular" placeholder="Si / No">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Utiliza Anticonceptivos?</label>
-                        <input type="text" class="form-control" name="anticonceptivos" placeholder="Sí / No / Cuál">
+                        <input type="text" class="form-control" name="anticonceptivos" placeholder="Si / No / Cual">
                     </div>
                 </div>
             </div>
 
-            <h5 class="section-title text-danger">4. Estilo de Vida</h5>
+            <h5 class="section-title">4. Estilo de Vida</h5>
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Calidad del Sueño</label>
+                    <label class="form-label">Calidad del Sueno</label>
                     <input type="text" class="form-control" name="calidad_sueno" placeholder="Buena / Regular / Mala">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Actividad Física</label>
+                    <label class="form-label">Actividad Fisica</label>
                     <input type="text" class="form-control" name="actividad_fisica" placeholder="Frecuencia y tipo">
                 </div>
                 <div class="col-md-4">
@@ -145,7 +285,7 @@
                     <input type="text" class="form-control" name="fuma_alcohol">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Cuántas veces al día come?</label>
+                    <label class="form-label">Cuantas veces al dia come?</label>
                     <input type="text" class="form-control" name="veces_come">
                 </div>
                 <div class="col-md-6">
@@ -154,10 +294,10 @@
                 </div>
             </div>
 
-            <!-- Sección Desplegable para Checkup GLP-1 con tabla de Sí/No -->
+            <!-- Seccion Desplegable para Checkup GLP-1 con tabla de Si/No -->
             <div class="mt-4">
-                <button class="btn btn-outline-warning w-100 py-2 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#glp1Collapse">
-                    📋 Checklist GLP-1 y Antecedentes Críticos (Hacer clic para desplegar matriz)
+                <button class="btn btn-outline-warning w-100 py-2 fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#glp1Collapse">
+                    Checklist GLP-1 y Antecedentes Criticos
                 </button>
                 <div class="collapse mt-3" id="glp1Collapse">
                     <div class="card card-body bg-dark border-secondary">
@@ -165,9 +305,9 @@
                             <table class="table table-dark table-striped table-hover align-middle mb-0">
                                 <thead>
                                     <tr>
-                                        <th>Criterio / Antecedente Clínico</th>
+                                        <th>Criterio / Antecedente Clinico</th>
                                         <th class="text-center" style="width: 80px;">NO</th>
-                                        <th class="text-center" style="width: 80px;">SÍ</th>
+                                        <th class="text-center" style="width: 80px;">SI</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -177,17 +317,17 @@
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_1" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Diagnóstico de neoplasia endocrina múltiple tipo 2 (MEN2)</td>
+                                        <td>Diagnostico de neoplasia endocrina multiple tipo 2 (MEN2)</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_2" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_2" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Antecedentes de Pancreatitis aguda o crónica</td>
+                                        <td>Antecedentes de Pancreatitis aguda o cronica</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_3" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_3" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Antecedentes/enfermedad actual de vesícula biliar (cálculos, colecistitis)</td>
+                                        <td>Antecedentes/enfermedad actual de vesicula biliar (calculos, colecistitis)</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_4" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_4" value="Sí"></td>
                                     </tr>
@@ -197,32 +337,32 @@
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_5" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Enfermedad renal crónica o episodios de deshidratación frecuentes</td>
+                                        <td>Enfermedad renal cronica o episodios de deshidratacion frecuentes</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_6" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_6" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Enfermedad hepática grave</td>
+                                        <td>Enfermedad hepatica grave</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_7" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_7" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Retinopatía diabética conocida</td>
+                                        <td>Retinopatia diabetica conocida</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_8" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_8" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Historia de depresión severa, ideación o conducta suicida</td>
+                                        <td>Historia de depresion severa, ideacion o conducta suicida</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_9" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_9" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Cirugía o anestesia general/sedación profunda programada pronto</td>
+                                        <td>Cirugia o anestesia general/sedacion profunda programada pronto</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_10" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_10" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Uso concomitante de otros fármacos para bajar de peso o GLP-1</td>
+                                        <td>Uso concomitante de otros farmacos para bajar de peso o GLP-1</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_11" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_11" value="Sí"></td>
                                     </tr>
@@ -232,7 +372,7 @@
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_12" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Fármacos orales con margen terapéutico estrecho</td>
+                                        <td>Farmacos orales con margen terapeutico estrecho</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_13" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_13" value="Sí"></td>
                                     </tr>
@@ -242,7 +382,7 @@
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_14" value="Sí"></td>
                                     </tr>
                                     <tr>
-                                        <td>Plan de embarazo en los próximos 2 meses o cercano / Lactancia</td>
+                                        <td>Plan de embarazo en los proximos 2 meses o cercano / Lactancia</td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_15" value="No" checked></td>
                                         <td class="text-center"><input class="form-check-input" type="radio" name="glp1_15" value="Sí"></td>
                                     </tr>
@@ -250,7 +390,18 @@
                             </table>
                         </div>
                         <div class="mt-3">
-                            <label class="form-label text-warning small">Observaciones adicionales del Checkup:</label>
+                            <div class="field-header">
+                                <label class="form-label text-warning small m-0">Observaciones adicionales del Checkup:</label>
+                                <button type="button" class="btn-voice-mini" data-target="checklist_glp1_notas" onclick="toggleDictadoCampo(this)">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                        <line x1="12" y1="19" x2="12" y2="22"></line>
+                                    </svg>
+                                    <span class="voice-label">Dictar</span>
+                                    <span class="voice-dot"></span>
+                                </button>
+                            </div>
                             <textarea class="form-control text-white bg-black" name="checklist_glp1_notas" rows="2" placeholder="Detalles adicionales..."></textarea>
                         </div>
                     </div>
@@ -277,7 +428,80 @@ function toggleGenderFields() {
 }
 toggleGenderFields();
 
-// --- SISTEMA DE AUTOGUARDADO (BORRADOR AUTOMÁTICO) ---
+let activeRecognition = null;
+let activeButton = null;
+
+function resetVoiceButton(btn) {
+    if (!btn) return;
+    btn.classList.remove('is-recording');
+    const lbl = btn.querySelector('.voice-label');
+    if (lbl) lbl.textContent = 'Dictar';
+}
+
+function toggleDictadoCampo(btn) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    if (activeButton === btn && activeRecognition) {
+        activeRecognition.stop();
+        return;
+    }
+
+    if (activeRecognition) {
+        activeRecognition.stop();
+    }
+
+    const targetName = btn.getAttribute('data-target');
+    const campo = document.querySelector('[name="' + targetName + '"]');
+    if (!campo) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-PY';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+        activeRecognition = recognition;
+        activeButton = btn;
+        btn.classList.add('is-recording');
+        const lbl = btn.querySelector('.voice-label');
+        if (lbl) lbl.textContent = 'Detener';
+    };
+
+    recognition.onresult = (event) => {
+        let nuevoTexto = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+                nuevoTexto += event.results[i][0].transcript + ' ';
+            }
+        }
+        if (nuevoTexto.trim()) {
+            const sep = campo.value && !campo.value.endsWith(' ') && !campo.value.endsWith('\n') ? ' ' : '';
+            campo.value += sep + nuevoTexto.trim();
+            campo.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    };
+
+    recognition.onerror = () => {
+        resetVoiceButton(btn);
+        if (activeButton === btn) {
+            activeRecognition = null;
+            activeButton = null;
+        }
+    };
+
+    recognition.onend = () => {
+        resetVoiceButton(btn);
+        if (activeButton === btn) {
+            activeRecognition = null;
+            activeButton = null;
+        }
+    };
+
+    recognition.start();
+}
+
+// --- SISTEMA DE AUTOGUARDADO (BORRADOR AUTOMATICO) ---
 document.addEventListener("DOMContentLoaded", function() {
     var form = document.querySelector("form");
     if (!form) return;
@@ -299,17 +523,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             }
         }
-        
+
         var alertDiv = document.createElement("div");
-        alertDiv.className = "alert alert-success border-success text-dark py-2 mt-3 fw-bold";
-        alertDiv.innerHTML = "📝 ¡Borrador recuperado! Hemos restaurado los datos que no llegaste a guardar.";
+        alertDiv.className = "alert alert-success border-success text-dark py-2 mt-3 fw-semibold";
+        alertDiv.textContent = "Borrador recuperado: se restauraron los datos que no llegaste a guardar.";
         form.insertBefore(alertDiv, form.firstChild);
-        
-        // Disparar evento para asegurar que los campos condicionales se actualicen
+
         toggleGenderFields();
     }
 
-    // 2. AUTOGUARDAR: Cada vez que teclea algo, se guarda en tiempo real
+    // 2. AUTOGUARDAR: Cada vez que teclea o dicta algo, se guarda en tiempo real
     form.addEventListener("input", function() {
         var formData = {};
         var inputs = form.querySelectorAll("input, textarea, select");
@@ -325,8 +548,9 @@ document.addEventListener("DOMContentLoaded", function() {
         localStorage.setItem(draftKey, JSON.stringify(formData));
     });
 
-    // 3. LIMPIAR: Solo borrar el borrador cuando le da click a "Guardar" y se envía
+    // 3. LIMPIAR: Solo borrar el borrador cuando le da click a "Guardar" y se envia
     form.addEventListener("submit", function() {
+        if (activeRecognition) activeRecognition.stop();
         localStorage.removeItem(draftKey);
     });
 });
