@@ -186,13 +186,13 @@ class User(db.Model):
 
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    full_name = db.Column(db.String(100), nullable=False)
-    ci = db.Column(db.String(20), unique=True, nullable=False)
+    full_name = db.Column(db.String(100), nullable=True)
+    ci = db.Column(db.String(20), unique=True, nullable=True)
     birth_date = db.Column(db.String(20))
-    age = db.Column(db.Integer, nullable=False)
-    gender = db.Column(db.String(10), nullable=False)
+    age = db.Column(db.Integer, nullable=True, default=0)
+    gender = db.Column(db.String(10), nullable=True, default='Mujer')
     phone = db.Column(db.String(20))
-    sanatorio = db.Column(db.String(100), nullable=False)
+    sanatorio = db.Column(db.String(100), nullable=True, default='Consultorio Principal')
     procedencia = db.Column(db.String(100))
     profession = db.Column(db.String(100))
     pathology_type = db.Column(db.String(100))
@@ -498,17 +498,23 @@ def index():
 def new_patient():
     if request.method == 'POST':
         ci_input = request.form.get('ci', '').strip()
-        if Patient.query.filter_by(ci=ci_input).first():
+        if not ci_input:
+            ci_input = f"SC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        elif Patient.query.filter_by(ci=ci_input).first():
             return f"<script>alert('❌ ERROR: Ya existe un paciente registrado con la Cédula {ci_input}. No se puede duplicar.'); window.history.back();</script>"
-        
+
+        nombre_input = format_text(request.form.get('full_name', '')) or 'Paciente Sin Nombre'
+        sanatorio_input = format_text(request.form.get('sanatorio', '')) or 'Consultorio Principal'
+        genero_input = request.form.get('gender') or 'Mujer'
+
         patient = Patient(
-            full_name=format_text(request.form.get('full_name', '')),
+            full_name=nombre_input,
             ci=ci_input,
             birth_date=request.form.get('birth_date'),
             age=parse_int(request.form.get('age')),
-            gender=request.form.get('gender'),
+            gender=genero_input,
             phone=request.form.get('phone'),
-            sanatorio=format_text(request.form.get('sanatorio', '')),
+            sanatorio=sanatorio_input,
             procedencia=format_text(request.form.get('procedencia')),
             profession=format_text(request.form.get('profession')),
             pathology_type=format_text(request.form.get('pathology_type')),
