@@ -2,8 +2,12 @@ from datetime import date, datetime, timedelta
 import io
 import csv
 import os
+import json
+import math
+import requests
 from flask import Flask, render_template, request, redirect, url_for, Response, send_file, session, send_from_directory, flash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -38,10 +42,10 @@ if not os.path.exists(UPLOAD_FOLDER):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def format_text(text):
-    if not text:
+def format_text(text_val):
+    if not text_val:
         return ""
-    lines = text.split('\n')
+    lines = text_val.split('\n')
     formatted_lines = [" ".join([w.capitalize() for w in line.split()]) for line in lines if line.strip()]
     return "\n".join(formatted_lines)
 
@@ -60,6 +64,92 @@ def parse_int(value):
     except:
         return 0
 # ----------------------------------------
+
+# --- EXTRACTOR CLÍNICO CON IA (GEMINI) ---
+def extraer_datos_con_ia(texto_consulta):
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key or not texto_consulta or not texto_consulta.strip():
+        return {}
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    prompt = f"""
+Eres un asistente médico experto en extracción de datos clínicos en español (Paraguay/Latinoamérica).
+Lee la siguiente nota de consulta médica escrita en texto libre y extrae ÚNICAMENTE los valores que aparezcan explícitamente en el texto.
+Si un dato NO está mencionado, devuélvelo como null. NO inventes ni asumas valores.
+Para valores numéricos devuelve solo el número con punto decimal, sin unidades (ej: 76.25).
+Nota sobre plaquetas: si aparecen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250). Si ya está en cientos (ej. 250), déjalo así.
+Si hay fecha explícita de laboratorio distinta a la consulta, ponla en lab_date en formato YYYY-MM-DD; si no, null.
+
+Devuelve EXCLUSIVAMENTE un objeto JSON válido con estas claves exactas:
+{{
+  "lab_date": "string YYYY-MM-DD o null",
+  "pa": "string o null (ej. '110/70')",
+  "fc": "int o null",
+  "height": "float en cm o null",
+  "weight": "float en kg o null",
+  "waist": "float en cm o null",
+  "body_fat_pct": "float o null",
+  "body_fat_kg": "float o null",
+  "visceral_fat": "float o null",
+  "muscle_mass_kg": "float o null",
+  "basal_metabolism": "float o null",
+  "glucose": "float o null",
+  "insulin": "float o null",
+  "hba1c": "float o null",
+  "triglycerides": "float o null",
+  "cholesterol_tot": "float o null",
+  "hdl": "float o null",
+  "ldl": "float o null",
+  "vldl": "float o null",
+  "uric_acid": "float o null",
+  "got": "float o null",
+  "gpt": "float o null",
+  "fa": "float o null",
+  "bili_tot": "float o null",
+  "bili_dir": "float o null",
+  "bili_ind": "float o null",
+  "urea": "float o null",
+  "creatinine": "float o null",
+  "tsh": "float o null",
+  "t4": "float o null",
+  "t3": "float o null",
+  "anti_tpo": "float o null",
+  "vit_d": "float o null",
+  "vit_b12": "float o null",
+  "calcium": "float o null",
+  "magnesium": "float o null",
+  "phosphorus": "float o null",
+  "chlorine": "float o null",
+  "platelets": "float o null",
+  "otros_laboratorios": "string o null (otros resultados de laboratorio no listados arriba, ej. CK total, hemoglobina, perfil hormonal)",
+  "ecografia_abdominal": "string o null",
+  "ecografia_tiroidea": "string o null",
+  "otros_estudios": "string o null (otros estudios de imagen o complementarios)",
+  "medications": "string o null (fármacos y dosis indicadas)",
+  "indicaciones_tratamiento": "string o null (plan, pedidos de estudios, pautas)",
+  "proximo_control": "string o null"
+}}
+
+NOTA MÉDICA:
+\"\"\"{texto_consulta}\"\"\"
+"""
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.0,
+            "responseMimeType": "application/json"
+        }
+    }
+
+    try:
+        resp = requests.post(url, json=payload, timeout=20)
+        if resp.status_code == 200:
+            raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(raw_text)
+    except Exception as e:
+        print(f"Error al extraer con IA: {e}")
+    return {}
+# -----------------------------------------
 
 db = SQLAlchemy(app)
 
@@ -171,6 +261,7 @@ class MedicalRecord(db.Model):
     magnesium = db.Column(db.Float)
     phosphorus = db.Column(db.Float)
     chlorine = db.Column(db.Float)
+    platelets = db.Column(db.Float)
     
     otros_laboratorios = db.Column(db.Text)
 
@@ -227,6 +318,16 @@ class MedicalRecord(db.Model):
             return round((self.insulin * self.glucose) / 405, 2)
         return None
 
+    @property
+    def fib4(self):
+        try:
+            if self.patient.age and self.got and self.gpt and self.platelets and self.platelets > 0 and self.gpt > 0:
+                resultado = (self.patient.age * self.got) / (self.platelets * math.sqrt(self.gpt))
+                return round(resultado, 2)
+        except:
+            pass
+        return None
+
 class PatientPhoto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
@@ -261,6 +362,14 @@ def recalculate_deltas(patient_id):
 
 with app.app_context():
     db.create_all()
+
+    # Migración segura de columna platelets (no borra datos)
+    try:
+        db.session.execute(text('ALTER TABLE medical_record ADD COLUMN platelets FLOAT'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     admin_user = User.query.filter_by(username='admin').first()
     if not admin_user:
         hashed_pw = generate_password_hash('metabosys2026', method='pbkdf2:sha256')
@@ -445,15 +554,117 @@ def delete_patient(id):
     db.session.commit()
     return redirect(url_for('index'))
 
-@app.route('/patient/<int:id>')
+@app.route('/patient/<int:id>', methods=['GET', 'POST'])
 @login_required
 def patient_detail(id):
     patient = Patient.query.get_or_404(id)
+    all_records = sorted(patient.records, key=lambda x: (x.date or '', x.id), reverse=True)
+    today_str = date.today().strftime('%Y-%m-%d')
+
+    # Guardado directo desde el recuadro de texto libre con clasificación por IA
+    if request.method == 'POST':
+        fecha = request.form.get('date') or today_str
+        nota_libre = request.form.get('nota_libre', '').strip()
+
+        if nota_libre:
+            datos = extraer_datos_con_ia(nota_libre)
+
+            def get_num(key):
+                val = datos.get(key)
+                if val is None or val == "":
+                    return None
+                return parse_float(val)
+
+            def get_int_val(key):
+                val = datos.get(key)
+                if val is None or val == "":
+                    return None
+                return parse_int(val)
+
+            # Si no escribió altura hoy, hereda la última registrada para seguir calculando IMC/ICA
+            altura_final = get_num('height')
+            if not altura_final:
+                altura_final = next((r.height for r in all_records if r.height), None)
+
+            record = MedicalRecord(
+                patient_id=patient.id,
+                date=fecha,
+                lab_date=datos.get('lab_date'),
+                pa=datos.get('pa'),
+                fc=get_int_val('fc'),
+                height=altura_final,
+                weight=get_num('weight'),
+                waist=get_num('waist'),
+                body_fat_pct=get_num('body_fat_pct'),
+                body_fat_kg=get_num('body_fat_kg'),
+                visceral_fat=get_num('visceral_fat'),
+                muscle_mass_kg=get_num('muscle_mass_kg'),
+                basal_metabolism=get_num('basal_metabolism'),
+                glucose=get_num('glucose'),
+                insulin=get_num('insulin'),
+                hba1c=get_num('hba1c'),
+                triglycerides=get_num('triglycerides'),
+                cholesterol_tot=get_num('cholesterol_tot'),
+                hdl=get_num('hdl'),
+                ldl=get_num('ldl'),
+                vldl=get_num('vldl'),
+                uric_acid=get_num('uric_acid'),
+                got=get_num('got'),
+                gpt=get_num('gpt'),
+                fa=get_num('fa'),
+                bili_tot=get_num('bili_tot'),
+                bili_dir=get_num('bili_dir'),
+                bili_ind=get_num('bili_ind'),
+                urea=get_num('urea'),
+                creatinine=get_num('creatinine'),
+                tsh=get_num('tsh'),
+                t4=get_num('t4'),
+                t3=get_num('t3'),
+                anti_tpo=get_num('anti_tpo'),
+                vit_d=get_num('vit_d'),
+                vit_b12=get_num('vit_b12'),
+                calcium=get_num('calcium'),
+                magnesium=get_num('magnesium'),
+                phosphorus=get_num('phosphorus'),
+                chlorine=get_num('chlorine'),
+                platelets=get_num('platelets'),
+                otros_laboratorios=datos.get('otros_laboratorios'),
+                ecografia_abdominal=datos.get('ecografia_abdominal'),
+                ecografia_tiroidea=datos.get('ecografia_tiroidea'),
+                otros_estudios=datos.get('otros_estudios'),
+                medications=datos.get('medications'),
+                indicaciones_tratamiento=datos.get('indicaciones_tratamiento'),
+                proximo_control=datos.get('proximo_control'),
+                notes=nota_libre
+            )
+            db.session.add(record)
+            db.session.commit()
+            recalculate_deltas(patient.id)
+
+            if datos:
+                flash("✅ Consulta guardada y datos clasificados automáticamente con IA en la planilla.", "success")
+            else:
+                flash("✅ Consulta guardada (sin clasificación IA: verifique GEMINI_API_KEY si desea extracción automática).", "info")
+
+        return redirect(url_for('patient_detail', id=patient.id))
+
+    last_record = all_records[0] if all_records else None
     valid_records = sorted([r for r in patient.records if r.weight is not None and r.weight > 0], key=lambda x: x.date)
     dates = [r.date for r in valid_records]
     hba1c_data = [r.hba1c for r in valid_records if r.hba1c]
     weight_data = [r.weight for r in valid_records if r.weight]
-    return render_template('patient_detail.html', patient=patient, valid_records=valid_records, dates=dates, hba1c_data=hba1c_data, weight_data=weight_data)
+
+    return render_template(
+        'patient_detail.html',
+        patient=patient,
+        all_records=all_records,
+        last_record=last_record,
+        valid_records=valid_records,
+        dates=dates,
+        hba1c_data=hba1c_data,
+        weight_data=weight_data,
+        today_str=today_str
+    )
 
 # --- RUTA PARA SUBIR Y PREVISUALIZAR ARCHIVO WORD (.docx) ---
 @app.route('/patient/import_docx/<int:patient_id>', methods=['GET', 'POST'])
@@ -466,7 +677,6 @@ def import_docx(patient_id):
     if request.method == 'POST':
         action = request.form.get('action')
         
-        # PASO 1: Subir y extraer texto para mostrar previsualización
         if action == 'upload' and 'word_file' in request.files:
             file = request.files['word_file']
             if file and file.filename.endswith('.docx') and docx is not None:
@@ -479,7 +689,6 @@ def import_docx(patient_id):
                 
                 return redirect(url_for('import_docx', patient_id=patient.id, preview_text=extracted_text, filename_saved=filename))
         
-        # PASO 2: Confirmar y guardar definitivamente en las notas de Word
         elif action == 'confirm':
             final_text = request.form.get('final_text', '')
             if final_text:
@@ -559,6 +768,7 @@ def new_record(patient_id):
             magnesium=parse_float(request.form.get('magnesium')),
             phosphorus=parse_float(request.form.get('phosphorus')),
             chlorine=parse_float(request.form.get('chlorine')),
+            platelets=parse_float(request.form.get('platelets')),
             otros_laboratorios=format_text(request.form.get('otros_laboratorios')),
             ecografia_abdominal=request.form.get('ecografia_abdominal'),
             ecografia_tiroidea=request.form.get('ecografia_tiroidea'),
@@ -646,6 +856,7 @@ def edit_record(id):
         record.magnesium = parse_float(request.form.get('magnesium'))
         record.phosphorus = parse_float(request.form.get('phosphorus'))
         record.chlorine = parse_float(request.form.get('chlorine'))
+        record.platelets = parse_float(request.form.get('platelets'))
         record.otros_laboratorios = format_text(request.form.get('otros_laboratorios'))
         record.ecografia_abdominal = request.form.get('ecografia_abdominal')
         record.ecografia_tiroidea = request.form.get('ecografia_tiroidea')
@@ -653,7 +864,7 @@ def edit_record(id):
         record.indicaciones_tratamiento = format_text(request.form.get('indicaciones_tratamiento'))
         record.medications = format_text(request.form.get('medications'))
         record.proximo_control = request.form.get('proximo_control')
-        record.notes = format_text(request.form.get('notes'))
+        record.notes = request.form.get('notes')
         record.conducta_medica = format_text(request.form.get('conducta_medica'))
         
         db.session.commit()
@@ -724,8 +935,8 @@ def export_excel():
         'Músculo (kg)', 'Músculo Delta (kg)', 'Músculo (%)', 'Metabolismo Basal', 'Masa Grasa (kg)', '% Músculo', '% Músculo Esquelético', 'Masa Músculo Esquelético (kg)', '% Óseo', 'Masa Ósea (kg)', '% Proteína', 'Masa Proteica (kg)', '% Agua Corporal', 'Masa Agua Corporal (kg)', 'Peso Sin Grasa (kg)', 'Grasa Subcutánea (%)', 'Edad Metabólica', 'Cintura (cm)', 'Cintura Perdida (cm)', 'Glicemia', 'Insulina', 'HbA1c (%)', 
         'Triglicéridos', 'Col. Tot', 'HDL', 'LDL', 'VLDL', 'Ácido Úrico', 'GOT', 'GPT', 'FA', 'Bili Tot', 'Bili Dir', 
         'Bili Ind', 'Urea', 'Creatinina', 'TSH', 'T4', 'T3', 'Anti-TPO', 'Vit D', 'Vit B12', 'Calcio', 'Magnesio', 
-        'Fósforo', 'Cloro', 'Otros Laboratorios', 'Eco Abdominal', 'Eco Tiroidea', 'Otros Estudios', 'Evolución / Notas', 'Indicaciones / Tratamiento', 'Medicación', 
-        'Próximo Control', 'HOMA-IR', 'Cintura/Altura', 'Conducta Médica'
+        'Fósforo', 'Cloro', 'Plaquetas', 'Otros Laboratorios', 'Eco Abdominal', 'Eco Tiroidea', 'Otros Estudios', 'Evolución / Notas', 'Indicaciones / Tratamiento', 'Medicación', 
+        'Próximo Control', 'HOMA-IR', 'FIB-4', 'Cintura/Altura', 'Conducta Médica'
     ])
     patients = Patient.query.all()
     for p in patients:
@@ -738,12 +949,12 @@ def export_excel():
                     r.date, r.lab_date, r.marca_balanza, r.pa, r.fc, r.height, r.weight, r.weight_lost, r.bmi, r.body_fat_kg, r.fat_lost, r.body_fat_pct, r.visceral_fat, r.muscle_mass_kg, r.muscle_delta, r.muscle_mass_pct,
                     r.basal_metabolism, r.masa_grasa_kg, r.porcentaje_musculo, r.porcentaje_musculo_esqueletico, r.masa_muscular_esqueletica, r.porcentaje_oseo, r.masa_osea, r.porcentaje_proteina, r.masa_proteica, r.porcentaje_agua_corporal, r.masa_agua_corporal, r.peso_sin_grasa, r.grasa_subcutanea_pct, r.edad_metabolica, r.waist, r.waist_lost, r.glucose, r.insulin, r.hba1c, r.triglycerides, r.cholesterol_tot, r.hdl, r.ldl,
                     r.vldl, r.uric_acid, r.got, r.gpt, r.fa, r.bili_tot, r.bili_dir, r.bili_ind, r.urea, r.creatinine,
-                    r.tsh, r.t4, r.t3, r.anti_tpo, r.vit_d, r.vit_b12, r.calcium, r.magnesium, r.phosphorus, r.chlorine,
+                    r.tsh, r.t4, r.t3, r.anti_tpo, r.vit_d, r.vit_b12, r.calcium, r.magnesium, r.phosphorus, r.chlorine, r.platelets,
                     r.otros_laboratorios, r.ecografia_abdominal, r.ecografia_tiroidea, r.otros_estudios, r.notes, r.indicaciones_tratamiento, r.medications,
-                    r.proximo_control, r.homair, r.ica_value, r.conducta_medica
+                    r.proximo_control, r.homair, r.fib4, r.ica_value, r.conducta_medica
                 ])
         else:
-            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
     output.seek(0)
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=matriz_metabolica_pacientes.csv"})
 
@@ -840,6 +1051,7 @@ def generate_pdf(patient_id):
         t_summary.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#003366')),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('TEXTCOLOR', (0,1), (-1,-1), colors.HexColor('#003366')),
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
