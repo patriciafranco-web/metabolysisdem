@@ -65,13 +65,15 @@ def parse_int(value):
         return 0
 # ----------------------------------------
 
-# --- EXTRACTOR CLÍNICO CON IA (GEMINI) ---
+# --- EXTRACTOR CLÍNICO CON IA (GEMINI / VERTEX AI) ---
 def extraer_datos_con_ia(texto_consulta):
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key or not texto_consulta or not texto_consulta.strip():
+    api_key = os.environ.get('GEMINI_API_KEY', '').strip()
+    if not api_key:
+        print("IA ERROR: No se encontró GEMINI_API_KEY en Render.", flush=True)
+        return {}
+    if not texto_consulta or not texto_consulta.strip():
         return {}
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     prompt = f"""
 Eres un asistente médico experto en extracción de datos clínicos en español (Paraguay/Latinoamérica).
 Lee la siguiente nota de consulta médica escrita en texto libre y extrae ÚNICAMENTE los valores que aparezcan explícitamente en el texto.
@@ -134,20 +136,30 @@ NOTA MÉDICA:
 \"\"\"{texto_consulta}\"\"\"
 """
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": 0.0,
             "responseMimeType": "application/json"
         }
     }
 
-    try:
-        resp = requests.post(url, json=payload, timeout=20)
-        if resp.status_code == 200:
-            raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(raw_text)
-    except Exception as e:
-        print(f"Error al extraer con IA: {e}")
+    for modelo in ["gemini-2.5-flash", "gemini-2.0-flash"]:
+        if api_key.startswith("AQ."):
+            url = f"https://aiplatform.googleapis.com/v1/publishers/google/models/{modelo}:generateContent?key={api_key}"
+        else:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+
+        try:
+            resp = requests.post(url, json=payload, timeout=25)
+            if resp.status_code == 200:
+                raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                if raw_text.startswith("```"):
+                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                return json.loads(raw_text)
+            else:
+                print(f"IA ERROR ({modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
+        except Exception as e:
+            print(f"IA EXCEPTION ({modelo}): {e}", flush=True)
     return {}
 # -----------------------------------------
 
@@ -954,7 +966,7 @@ def export_excel():
                     r.proximo_control, r.homair, r.fib4, r.ica_value, r.conducta_medica
                 ])
         else:
-            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
     output.seek(0)
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=matriz_metabolica_pacientes.csv"})
 
