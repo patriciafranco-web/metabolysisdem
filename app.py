@@ -511,7 +511,7 @@ def new_patient():
             alergia_farmacos=format_text(request.form.get('alergia_farmacos')),
             cant_hijos=request.form.get('cant_hijos'),
             menarca=format_text(request.form.get('menarca')),
-            menstruacion_regular=format_text(request.form.get('menstruacion_regular')),
+            menstruacion_regular=request.form.get('menstruacion_regular'),
             anticonceptivos=format_text(request.form.get('anticonceptivos')),
             checklist_glp1_notas=format_text(request.form.get('checklist_glp1_notas')),
             calidad_sueno=format_text(request.form.get('calidad_sueno')),
@@ -522,7 +522,7 @@ def new_patient():
         )
         db.session.add(patient)
         db.session.commit()
-        return redirect(url_for('index'))
+        return redirect(url_for('patient_detail', id=patient.id))
     return render_template('new_patient.html')
 
 @app.route('/patient/edit/<int:id>', methods=['GET', 'POST'])
