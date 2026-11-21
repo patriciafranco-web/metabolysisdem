@@ -2,20 +2,21 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <h3 class="text-white fw-bold m-0">
-        <span style="color: #9d4edd;">👥</span> Directorio General de Pacientes
+    <h3 class="text-white fw-bold m-0 d-flex align-items-center gap-2">
+        <i class="bi bi-people-fill text-warning"></i>
+        <span>Directorio General de Pacientes</span>
     </h3>
-    <div>
-        <a href="{{ url_for('export_excel') }}" class="btn btn-info btn-sm fw-bold text-white me-2" style="background-color: #2a9d8f; border: none;">
-            <i class="bi bi-file-earmark-spreadsheet"></i> Exportar Todo (Investigación)
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('export_excel') }}" class="btn btn-sm fw-semibold text-white" style="background-color: #2a9d8f; border: none;">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar Todo (Investigacion)
         </a>
-        <a href="{{ url_for('new_patient') }}" class="btn btn-danger btn-sm fw-bold" style="background-color: #ef233c; border: none;">
-            <i class="bi bi-plus-lg"></i> Nuevo Paciente
+        <a href="{{ url_for('new_patient') }}" class="btn btn-danger btn-sm fw-semibold" style="background-color: #ef233c; border: none;">
+            <i class="bi bi-plus-lg me-1"></i> Nuevo Paciente
         </a>
     </div>
 </div>
 
-<!-- Barra de Búsqueda y Filtros -->
+<!-- Barra de Busqueda y Filtros -->
 <div class="card p-3 mb-4 shadow-sm" style="background-color: #1e1e1e; border: 1px solid #333;">
     <form method="GET" action="{{ url_for('index') }}" class="row g-2 align-items-center">
         <div class="col-md-5">
@@ -30,7 +31,9 @@
             </select>
         </div>
         <div class="col-md-3">
-            <button type="submit" class="btn w-100" style="background-color: #2a2a2a; color: #fff; border: 1px solid #444;">🔍 Filtrar / Buscar</button>
+            <button type="submit" class="btn w-100 fw-semibold" style="background-color: #2a2a2a; color: #fff; border: 1px solid #444;">
+                <i class="bi bi-search me-1"></i> Filtrar / Buscar
+            </button>
         </div>
     </form>
 </div>
@@ -44,8 +47,8 @@
                     <th>Nombre Completo</th>
                     <th>CI</th>
                     <th>Sanatorio</th>
-                    <th>Patología Principal</th>
-                    <th>Edad / Género</th>
+                    <th>Patologia Principal</th>
+                    <th>Edad / Genero</th>
                     <th class="text-end">Acciones</th>
                 </tr>
             </thead>
@@ -57,7 +60,7 @@
                         <td>{{ p.ci }}</td>
                         <td>{{ p.sanatorio }}</td>
                         <td>{{ p.pathology_type or 'Diabetes / Obesidad' }}</td>
-                        <td>{{ p.age }} años / {{ p.gender }}</td>
+                        <td>{{ p.age }} anos / {{ p.gender }}</td>
                         <td class="text-end">
                             <a href="{{ url_for('patient_detail', id=p.id) }}" class="btn btn-outline-light btn-sm">Ver Ficha</a>
                         </td>
@@ -65,7 +68,7 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">No se encontraron pacientes registrados con esos criterios.</td>
+                        <td colspan="6" class="text-center text-secondary py-4">No se encontraron pacientes registrados con esos criterios.</td>
                     </tr>
                 {% endif %}
             </tbody>
