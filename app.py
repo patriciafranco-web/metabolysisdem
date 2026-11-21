@@ -65,11 +65,11 @@ def parse_int(value):
         return 0
 # ----------------------------------------
 
-# --- EXTRACTOR CLÍNICO CON IA (GEMINI) ---
+# --- EXTRACTOR CLÍNICO CON IA (CLAUDE / ANTHROPIC) ---
 def extraer_datos_con_ia(texto_consulta):
-    api_key = os.environ.get('GEMINI_API_KEY', '').strip()
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
-        print("IA ERROR: No se encontró GEMINI_API_KEY en Render.", flush=True)
+        print("IA ERROR: No se encontró ANTHROPIC_API_KEY en Render.", flush=True)
         return {}
     if not texto_consulta or not texto_consulta.strip():
         return {}
@@ -82,7 +82,7 @@ Para valores numéricos devuelve solo el número con punto decimal, sin unidades
 Nota sobre plaquetas: si aparecen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250). Si ya está en cientos (ej. 250), déjalo así.
 Si hay fecha explícita de laboratorio distinta a la consulta, ponla en lab_date en formato YYYY-MM-DD; si no, null.
 
-Devuelve EXCLUSIVAMENTE un objeto JSON válido con estas claves exactas:
+Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques markdown) con estas claves exactas:
 {{
   "lab_date": "string YYYY-MM-DD o null",
   "pa": "string o null (ej. '110/70')",
@@ -135,32 +135,35 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con estas claves exactas:
 NOTA MÉDICA:
 \"\"\"{texto_consulta}\"\"\"
 """
-    payload = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.0,
-            "responseMimeType": "application/json"
-        }
-    }
-
+    url = "https://api.anthropic.com/v1/messages"
     headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": api_key
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    payload = {
+        "model": "claude-3-5-haiku-latest",
+        "max_tokens": 1200,
+        "temperature": 0,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
     }
 
-    for modelo in ["gemini-2.5-flash", "gemini-2.0-flash"]:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=25)
-            if resp.status_code == 200:
-                raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-                if raw_text.startswith("```"):
-                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-                return json.loads(raw_text)
-            else:
-                print(f"IA ERROR ({modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
-        except Exception as e:
-            print(f"IA EXCEPTION ({modelo}): {e}", flush=True)
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=25)
+        if resp.status_code == 200:
+            content_blocks = resp.json().get("content", [])
+            raw_text = "".join(
+                block.get("text", "") for block in content_blocks if block.get("type") == "text"
+            ).strip()
+            if raw_text.startswith("```"):
+                raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+            return json.loads(raw_text)
+        else:
+            print(f"IA ERROR (Claude) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
+    except Exception as e:
+        print(f"IA EXCEPTION (Claude): {e}", flush=True)
     return {}
 # -----------------------------------------
 
@@ -657,7 +660,7 @@ def patient_detail(id):
             if datos:
                 flash("✅ Consulta guardada y datos clasificados automáticamente con IA en la planilla.", "success")
             else:
-                flash("✅ Consulta guardada (sin clasificación IA: verifique GEMINI_API_KEY si desea extracción automática).", "info")
+                flash("✅ Consulta guardada (sin clasificación IA: verifique ANTHROPIC_API_KEY si desea extracción automática).", "info")
 
         return redirect(url_for('patient_detail', id=patient.id))
 
