@@ -174,6 +174,124 @@ NOTA MÉDICA:
         except Exception as e:
             print(f"IA EXCEPTION (Claude {modelo}): {e}", flush=True)
     return {}
+
+def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+    if not api_key:
+        print("IA ERROR: No se encontró ANTHROPIC_API_KEY en Render.", flush=True)
+        return []
+    if not texto_historial or not texto_historial.strip():
+        return []
+
+    prompt = f"""
+Eres un asistente médico experto en extracción de datos clínicos en español (Paraguay/Latinoamérica).
+Lee el siguiente historial o notas clínicas (que puede contener una o varias consultas o controles en distintas fechas).
+Separa cada consulta o bloque de datos clínicos por su fecha explícita en formato YYYY-MM-DD.
+Si un bloque no tiene fecha propia clara, usa "{fecha_por_defecto}".
+Extrae ÚNICAMENTE los valores que aparezcan explícitamente en cada bloque; si un dato no aparece, pon null. NO inventes valores.
+Para valores numéricos devuelve solo el número con punto decimal, sin unidades (ej: 76.25).
+Nota sobre plaquetas: si aparecen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo así.
+Si hay fecha explícita de laboratorio distinta a la consulta, ponla en lab_date en formato YYYY-MM-DD; si no, null.
+
+Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques markdown) con esta estructura:
+{{
+  "consultas": [
+    {{
+      "date": "string YYYY-MM-DD",
+      "lab_date": "string YYYY-MM-DD o null",
+      "pa": "string o null",
+      "fc": "int o null",
+      "height": "float en cm o null",
+      "weight": "float en kg o null",
+      "waist": "float en cm o null",
+      "body_fat_pct": "float o null",
+      "body_fat_kg": "float o null",
+      "visceral_fat": "float o null",
+      "muscle_mass_kg": "float o null",
+      "basal_metabolism": "float o null",
+      "glucose": "float o null",
+      "insulin": "float o null",
+      "hba1c": "float o null",
+      "triglycerides": "float o null",
+      "cholesterol_tot": "float o null",
+      "hdl": "float o null",
+      "ldl": "float o null",
+      "vldl": "float o null",
+      "uric_acid": "float o null",
+      "got": "float o null",
+      "gpt": "float o null",
+      "fa": "float o null",
+      "bili_tot": "float o null",
+      "bili_dir": "float o null",
+      "bili_ind": "float o null",
+      "urea": "float o null",
+      "creatinine": "float o null",
+      "tsh": "float o null",
+      "t4": "float o null",
+      "t3": "float o null",
+      "anti_tpo": "float o null",
+      "vit_d": "float o null",
+      "vit_b12": "float o null",
+      "calcium": "float o null",
+      "magnesium": "float o null",
+      "phosphorus": "float o null",
+      "chlorine": "float o null",
+      "platelets": "float o null",
+      "otros_laboratorios": "string o null",
+      "ecografia_abdominal": "string o null",
+      "ecografia_tiroidea": "string o null",
+      "otros_estudios": "string o null",
+      "medications": "string o null",
+      "indicaciones_tratamiento": "string o null",
+      "proximo_control": "string o null",
+      "notes": "string con el texto o resumen de esa consulta"
+    }}
+  ]
+}}
+
+HISTORIAL WORD:
+\"\"\"{texto_historial}\"\"\"
+"""
+    url = "[https://api.anthropic.com/v1/messages](https://api.anthropic.com/v1/messages)"
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+
+    modelos_candidatos = [
+        "claude-sonnet-5-5",
+        "claude-sonnet-5.5",
+        "claude-sonnet-4-6",
+        "claude-haiku-4-5-20251001"
+    ]
+
+    for modelo in modelos_candidatos:
+        payload = {
+            "model": modelo,
+            "max_tokens": 3500,
+            "temperature": 0,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=40)
+            if resp.status_code == 200:
+                content_blocks = resp.json().get("content", [])
+                raw_text = "".join(
+                    block.get("text", "") for block in content_blocks if block.get("type") == "text"
+                ).strip()
+                if raw_text.startswith("```"):
+                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                data = json.loads(raw_text)
+                if isinstance(data, dict) and isinstance(data.get("consultas"), list):
+                    return data["consultas"]
+            else:
+                print(f"IA ERROR HISTORIAL (Claude {modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
+        except Exception as e:
+            print(f"IA EXCEPTION HISTORIAL (Claude {modelo}): {e}", flush=True)
+    return []
 # -----------------------------------------
 
 db = SQLAlchemy(app)
@@ -733,19 +851,105 @@ def import_docx(patient_id):
                 return redirect(url_for('import_docx', patient_id=patient.id, preview_text=extracted_text, filename_saved=filename))
         
         elif action == 'confirm':
-            final_text = request.form.get('final_text', '')
+            final_text = request.form.get('final_text', '').strip()
             if final_text:
                 today_str = date.today().strftime('%Y-%m-%d')
-                record = MedicalRecord(
-                    patient_id=patient.id,
-                    date=today_str,
-                    weight=None,
-                    notes=final_text,
-                    indicaciones_tratamiento="Ver historial importado en notas de Word."
-                )
-                db.session.add(record)
-                db.session.commit()
-                flash("✅ ¡Historial importado exitosamente!", "success")
+                consultas = extraer_historial_por_fecha_con_ia(final_text, today_str)
+
+                def get_num(d, key):
+                    val = d.get(key)
+                    if val is None or val == "":
+                        return None
+                    return parse_float(val)
+
+                def get_int_val(d, key):
+                    val = d.get(key)
+                    if val is None or val == "":
+                        return None
+                    return parse_int(val)
+
+                existentes = sorted(patient.records, key=lambda x: (x.date or '', x.id), reverse=True)
+                altura_base = next((r.height for r in existentes if r.height), None)
+
+                if consultas:
+                    consultas_ordenadas = sorted(consultas, key=lambda x: str(x.get('date') or today_str))
+                    creados = 0
+                    for item in consultas_ordenadas:
+                        fecha_item = str(item.get('date') or today_str).strip() or today_str
+                        altura_item = get_num(item, 'height') or altura_base
+                        if altura_item:
+                            altura_base = altura_item
+
+                        record = MedicalRecord(
+                            patient_id=patient.id,
+                            date=fecha_item,
+                            lab_date=item.get('lab_date'),
+                            pa=item.get('pa'),
+                            fc=get_int_val(item, 'fc'),
+                            height=altura_item,
+                            weight=get_num(item, 'weight'),
+                            waist=get_num(item, 'waist'),
+                            body_fat_pct=get_num(item, 'body_fat_pct'),
+                            body_fat_kg=get_num(item, 'body_fat_kg'),
+                            visceral_fat=get_num(item, 'visceral_fat'),
+                            muscle_mass_kg=get_num(item, 'muscle_mass_kg'),
+                            basal_metabolism=get_num(item, 'basal_metabolism'),
+                            glucose=get_num(item, 'glucose'),
+                            insulin=get_num(item, 'insulin'),
+                            hba1c=get_num(item, 'hba1c'),
+                            triglycerides=get_num(item, 'triglycerides'),
+                            cholesterol_tot=get_num(item, 'cholesterol_tot'),
+                            hdl=get_num(item, 'hdl'),
+                            ldl=get_num(item, 'ldl'),
+                            vldl=get_num(item, 'vldl'),
+                            uric_acid=get_num(item, 'uric_acid'),
+                            got=get_num(item, 'got'),
+                            gpt=get_num(item, 'gpt'),
+                            fa=get_num(item, 'fa'),
+                            bili_tot=get_num(item, 'bili_tot'),
+                            bili_dir=get_num(item, 'bili_dir'),
+                            bili_ind=get_num(item, 'bili_ind'),
+                            urea=get_num(item, 'urea'),
+                            creatinine=get_num(item, 'creatinine'),
+                            tsh=get_num(item, 'tsh'),
+                            t4=get_num(item, 't4'),
+                            t3=get_num(item, 't3'),
+                            anti_tpo=get_num(item, 'anti_tpo'),
+                            vit_d=get_num(item, 'vit_d'),
+                            vit_b12=get_num(item, 'vit_b12'),
+                            calcium=get_num(item, 'calcium'),
+                            magnesium=get_num(item, 'magnesium'),
+                            phosphorus=get_num(item, 'phosphorus'),
+                            chlorine=get_num(item, 'chlorine'),
+                            platelets=get_num(item, 'platelets'),
+                            otros_laboratorios=item.get('otros_laboratorios'),
+                            ecografia_abdominal=item.get('ecografia_abdominal'),
+                            ecografia_tiroidea=item.get('ecografia_tiroidea'),
+                            otros_estudios=item.get('otros_estudios'),
+                            medications=item.get('medications'),
+                            indicaciones_tratamiento=item.get('indicaciones_tratamiento'),
+                            proximo_control=item.get('proximo_control'),
+                            notes=item.get('notes') or final_text
+                        )
+                        db.session.add(record)
+                        creados += 1
+
+                    db.session.commit()
+                    recalculate_deltas(patient.id)
+                    flash(f"✅ Historial procesado con IA: se cargaron {creados} consulta(s) por fecha en la planilla.", "success")
+                else:
+                    record = MedicalRecord(
+                        patient_id=patient.id,
+                        date=today_str,
+                        height=altura_base,
+                        weight=None,
+                        notes=final_text,
+                        indicaciones_tratamiento="Ver historial importado en notas de Word."
+                    )
+                    db.session.add(record)
+                    db.session.commit()
+                    flash("✅ ¡Historial importado exitosamente!", "success")
+
                 return redirect(url_for('patient_detail', id=patient.id))
 
     return render_template('import_docx.html', patient=patient, preview_text=preview_text, filename_saved=filename_saved)
@@ -997,7 +1201,7 @@ def export_excel():
                     r.proximo_control, r.homair, r.fib4, r.ica_value, r.conducta_medica
                 ])
         else:
-            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
     output.seek(0)
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=matriz_metabolica_pacientes.csv"})
 
