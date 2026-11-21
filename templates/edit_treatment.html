@@ -1,151 +1,80 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Modificar Plan - METABOLISYS</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #121212 !important;
-            color: #e0e0e0 !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .brand-title {
-            color: #e63946;
-            letter-spacing: 0.08em;
-        }
-        .card {
-            background-color: #1e1e1e !important;
-            border: 1px solid #333 !important;
-            color: #ffffff !important;
-        }
-        .form-control, .form-select, textarea {
-            background-color: #2a2a2a !important;
-            border: 1px solid #555 !important;
-            color: #ffffff !important;
-        }
-        .form-control:focus, .form-select:focus, textarea:focus {
-            background-color: #333333 !important;
-            border-color: #ff6b6b !important;
-            color: #ffffff !important;
-            box-shadow: none !important;
-        }
-        .form-control::placeholder, textarea::placeholder {
-            color: #aaaaaa !important;
-            opacity: 1;
-        }
-        label, .form-label {
-            color: #f1f1f1 !important;
-        }
-        .btn-primary {
-            background-color: #e63946;
-            border: none;
-        }
-        .btn-primary:hover {
-            background-color: #d90429;
-        }
-        input[type="text"], textarea {
-            text-transform: capitalize;
-        }
-        .field-header-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
-            flex-wrap: wrap;
-        }
-        .btn-voice-plan {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 3px 9px;
-            font-size: 0.76rem;
-            font-weight: 500;
-            border-radius: 5px;
-            border: 1px solid rgba(255, 183, 3, 0.45);
-            background-color: rgba(255, 183, 3, 0.08);
-            color: #ffd166;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-voice-plan:hover {
-            background-color: rgba(255, 183, 3, 0.16);
-            color: #fff;
-        }
-        .btn-voice-plan.is-recording {
-            border-color: #ef4444;
-            background-color: rgba(239, 68, 68, 0.16);
-            color: #fca5a5;
-        }
-        .voice-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background-color: #94a3b8;
-            display: inline-block;
-        }
-        .btn-voice-plan.is-recording .voice-dot {
-            background-color: #ef4444;
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
-            animation: voicePulse 1.3s infinite;
-        }
-        @keyframes voicePulse {
-            0% { transform: scale(0.95); opacity: 1; }
-            70% { transform: scale(1.15); opacity: 0.75; }
-            100% { transform: scale(0.95); opacity: 1; }
-        }
-    </style>
-</head>
-<body class="py-4">
-<div class="container" style="max-width: 800px;">
-    <div class="card p-4 shadow-lg rounded-4">
-        <div class="brand-title text-center fw-bold mb-1">METABOLISYS</div>
-        <h4 class="text-center mb-4 fw-normal">Modificar Plan y Tratamiento para: <strong class="text-warning">{{ patient.full_name }}</strong></h4>
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .field-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+        flex-wrap: wrap;
+    }
+    .voice-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-voice-treat {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 9px;
+        font-size: 0.76rem;
+        font-weight: 500;
+        border-radius: 5px;
+        border: 1px solid rgba(255, 183, 3, 0.45);
+        background-color: rgba(255, 183, 3, 0.08);
+        color: #ffd166;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-voice-treat:hover {
+        background-color: rgba(255, 183, 3, 0.16);
+        color: #fff;
+    }
+    .btn-voice-treat.is-recording {
+        border-color: #ef4444;
+        background-color: rgba(239, 68, 68, 0.16);
+        color: #fca5a5;
+    }
+    .voice-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #94a3b8;
+        display: inline-block;
+    }
+    .btn-voice-treat.is-recording .voice-dot {
+        background-color: #ef4444;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+        animation: voicePulse 1.3s infinite;
+    }
+    .voice-hint {
+        font-size: 0.72rem;
+        color: #adb5bd;
+    }
+    @keyframes voicePulse {
+        0% { transform: scale(0.95); opacity: 1; }
+        70% { transform: scale(1.15); opacity: 0.75; }
+        100% { transform: scale(0.95); opacity: 1; }
+    }
+</style>
 
-        <form method="POST">
+<div class="container pb-5" style="max-width: 900px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-outline-secondary btn-sm">Volver al Perfil</a>
+        <h2 class="text-warning fw-bold m-0 fs-4">Plan Medico y Tratamiento</h2>
+    </div>
+
+    <div class="card p-4 shadow-sm" style="background-color: #1e1e1e; border: 1px solid #333;">
+        <h5 class="text-info mb-3">Paciente: {{ patient.full_name }} (CI: {{ patient.ci }})</h5>
+
+        <form method="POST" action="{{ url_for('edit_treatment', patient_id=patient.id) }}" enctype="multipart/form-data">
             <div class="mb-3">
                 <div class="field-header-row">
-                    <label class="form-label fw-bold m-0">Indicaciones Generales / Plan</label>
-                    <button type="button" class="btn-voice-plan" data-target="indicaciones_tratamiento" onclick="toggleDictadoModPlan(this)">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="22"></line>
-                        </svg>
-                        <span class="voice-label">Dictar</span>
-                        <span class="voice-dot"></span>
-                    </button>
-                </div>
-                <textarea class="form-control" name="indicaciones_tratamiento" rows="4" placeholder="Ej. Dieta baja en carbohidratos...">{% if record %}{{ record.indicaciones_tratamiento }}{% endif %}</textarea>
-            </div>
-
-            <div class="mb-3">
-                <div class="field-header-row">
-                    <label class="form-label fw-bold m-0">Medicacion (Receta)</label>
-                    <button type="button" class="btn-voice-plan" data-target="medications" onclick="toggleDictadoModPlan(this)">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="22"></line>
-                        </svg>
-                        <span class="voice-label">Dictar</span>
-                        <span class="voice-dot"></span>
-                    </button>
-                </div>
-                <textarea class="form-control" name="medications" rows="3" placeholder="Ej. Metformina 850mg...">{% if record %}{{ record.medications }}{% endif %}</textarea>
-            </div>
-
-            <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Proximo Control</label>
-                    <input type="text" class="form-control" name="proximo_control" value="{% if record %}{{ record.proximo_control }}{% endif %}" placeholder="Ej. 4 semanas">
-                </div>
-                <div class="col-md-6">
-                    <div class="field-header-row">
-                        <label class="form-label fw-bold m-0">Conducta Medica</label>
-                        <button type="button" class="btn-voice-plan" data-target="conducta_medica" onclick="toggleDictadoModPlan(this)">
+                    <label class="form-label text-light fw-bold m-0">Indicaciones Terapeuticas / Plan a Seguir</label>
+                    <div class="voice-controls">
+                        <button type="button" class="btn-voice-treat" data-target="indicaciones_tratamiento" onclick="toggleDictadoPlan(this)">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -154,41 +83,116 @@
                             <span class="voice-label">Dictar</span>
                             <span class="voice-dot"></span>
                         </button>
+                        <span class="voice-hint"></span>
                     </div>
-                    <textarea class="form-control" name="conducta_medica" rows="1">{% if record %}{{ record.conducta_medica }}{% endif %}</textarea>
+                </div>
+                <textarea class="form-control bg-dark text-white border-secondary" name="indicaciones_tratamiento" rows="5" placeholder="Escriba o dicte el plan medico, pautas nutricionales o indicaciones generales...">{{ record.indicaciones_tratamiento if record else '' }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <div class="field-header-row">
+                    <label class="form-label text-light fw-bold m-0">Medicacion Recetada</label>
+                    <div class="voice-controls">
+                        <button type="button" class="btn-voice-treat" data-target="medications" onclick="toggleDictadoPlan(this)">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="22"></line>
+                            </svg>
+                            <span class="voice-label">Dictar</span>
+                            <span class="voice-dot"></span>
+                        </button>
+                        <span class="voice-hint"></span>
+                    </div>
+                </div>
+                <textarea class="form-control bg-dark text-white border-secondary" name="medications" rows="3" placeholder="Detalle o dicte los farmacos, dosis y frecuencias...">{{ record.medications if record else '' }}</textarea>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label text-light">Proximo Control</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="proximo_control" value="{{ record.proximo_control if record else '' }}" placeholder="Ej. 1 mes, 3 meses...">
+                </div>
+                <div class="col-md-6">
+                    <div class="field-header-row">
+                        <label class="form-label text-light m-0">Conducta Medica</label>
+                        <div class="voice-controls">
+                            <button type="button" class="btn-voice-treat" data-target="conducta_medica" onclick="toggleDictadoPlan(this)">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                    <line x1="12" y1="19" x2="12" y2="22"></line>
+                                </svg>
+                                <span class="voice-label">Dictar</span>
+                                <span class="voice-dot"></span>
+                            </button>
+                            <span class="voice-hint"></span>
+                        </div>
+                    </div>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="conducta_medica" value="{{ record.conducta_medica if record else '' }}" placeholder="Ej. Derivacion, estudios pendientes...">
                 </div>
             </div>
 
-            <div class="d-flex justify-content-between pt-3 border-top border-secondary">
-                <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-primary px-4">Guardar Plan</button>
+            <div class="card bg-black border-secondary p-3 mb-4">
+                <h6 class="text-danger fw-semibold mb-3">Adjuntar Estudio o Foto Complementaria</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label text-light">Categoria</label>
+                        <select class="form-select bg-dark text-white border-secondary" name="photo_category">
+                            <option value="Evolución">Control / Evolucion</option>
+                            <option value="Estudios / Ecografía">Estudio / Ecografia / TAC</option>
+                            <option value="Antes">Foto Inicial (Antes)</option>
+                            <option value="Después">Resultado Final (Despues)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label text-light">Seleccionar Archivo / Imagen</label>
+                        <input type="file" class="form-control bg-dark text-white border-secondary" name="photo" accept="image/*,.pdf">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-light">Notas del Archivo</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" name="photo_notes" placeholder="Ej. Ecografia...">
+                    </div>
+                </div>
             </div>
+
+            <button type="submit" class="btn btn-warning fw-bold text-dark w-100 py-3 mt-2 fs-5">Guardar Plan y Tratamiento</button>
         </form>
     </div>
 </div>
 
 <script>
-let modPlanRecognition = null;
-let modPlanActiveBtn = null;
+let planRecognition = null;
+let planActiveButton = null;
 
-function resetModPlanVoiceBtn(btn) {
+function setVoiceHint(btn, text) {
+    const container = btn ? btn.closest(".voice-controls") : null;
+    const hint = container ? container.querySelector(".voice-hint") : null;
+    if (hint) hint.textContent = text || "";
+}
+
+function resetPlanVoiceButton(btn, clearHint) {
     if (!btn) return;
     btn.classList.remove("is-recording");
     const lbl = btn.querySelector(".voice-label");
     if (lbl) lbl.textContent = "Dictar";
+    if (clearHint) setVoiceHint(btn, "");
 }
 
-function toggleDictadoModPlan(btn) {
+function toggleDictadoPlan(btn) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    if (modPlanActiveBtn === btn && modPlanRecognition) {
-        modPlanRecognition.stop();
+    if (!SpeechRecognition) {
+        setVoiceHint(btn, "Disponible en Chrome o Edge");
         return;
     }
 
-    if (modPlanRecognition) {
-        modPlanRecognition.stop();
+    if (planActiveButton === btn && planRecognition) {
+        planRecognition.stop();
+        return;
+    }
+
+    if (planRecognition) {
+        planRecognition.stop();
     }
 
     const targetName = btn.getAttribute("data-target");
@@ -201,11 +205,12 @@ function toggleDictadoModPlan(btn) {
     recognition.interimResults = false;
 
     recognition.onstart = () => {
-        modPlanRecognition = recognition;
-        modPlanActiveBtn = btn;
+        planRecognition = recognition;
+        planActiveButton = btn;
         btn.classList.add("is-recording");
         const lbl = btn.querySelector(".voice-label");
         if (lbl) lbl.textContent = "Detener";
+        setVoiceHint(btn, "Escuchando...");
     };
 
     recognition.onresult = (event) => {
@@ -222,87 +227,42 @@ function toggleDictadoModPlan(btn) {
         }
     };
 
-    recognition.onerror = () => {
-        resetModPlanVoiceBtn(btn);
-        if (modPlanActiveBtn === btn) {
-            modPlanRecognition = null;
-            modPlanActiveBtn = null;
+    recognition.onerror = (event) => {
+        const msg = event.error === "not-allowed" ? "Permiso de microfono denegado" : "Error de microfono";
+        resetPlanVoiceButton(btn, false);
+        setVoiceHint(btn, msg);
+        if (planActiveButton === btn) {
+            planRecognition = null;
+            planActiveButton = null;
         }
     };
 
     recognition.onend = () => {
-        resetModPlanVoiceBtn(btn);
-        if (modPlanActiveBtn === btn) {
-            modPlanRecognition = null;
-            modPlanActiveBtn = null;
+        resetPlanVoiceButton(btn, true);
+        if (planActiveButton === btn) {
+            planRecognition = null;
+            planActiveButton = null;
         }
     };
 
     recognition.start();
 }
 
-// --- SISTEMA DE AUTOGUARDADO (BORRADOR AUTOMATICO) ---
 document.addEventListener("DOMContentLoaded", function() {
     var form = document.querySelector("form");
-    if (!form) return;
-
-    var draftKey = "draft_" + window.location.pathname;
-
-    // 1. RECUPERAR: Si hay un borrador guardado, rellenar el formulario
-    var savedDraft = localStorage.getItem(draftKey);
-    if (savedDraft) {
-        var formData = JSON.parse(savedDraft);
-        for (var key in formData) {
-            var field = form.querySelector("[name='" + key + "']");
-            if (field && field.type !== "file") {
-                if (field.type === "radio") {
-                    var radioToCheck = form.querySelector("input[name='" + key + "'][value='" + formData[key] + "']");
-                    if (radioToCheck) radioToCheck.checked = true;
-                } else {
-                    field.value = formData[key];
-                }
+    if (form) {
+        form.addEventListener("submit", function() {
+            if (planRecognition) {
+                planRecognition.stop();
             }
-        }
-
-        var alertDiv = document.createElement("div");
-        alertDiv.className = "alert alert-success border-success text-dark py-2 mt-3 fw-semibold";
-        alertDiv.textContent = "Borrador recuperado: se restauraron los datos que no llegaste a guardar.";
-        form.insertBefore(alertDiv, form.firstChild);
-    }
-
-    // 2. AUTOGUARDAR: Cada vez que teclea o dicta algo, se guarda en tiempo real
-    form.addEventListener("input", function() {
-        var formData = {};
-        var inputs = form.querySelectorAll("input, textarea, select");
-        inputs.forEach(function(input) {
-            if (input.name && input.type !== "file") {
-                if (input.type === "radio") {
-                    if (input.checked) formData[input.name] = input.value;
-                } else {
-                    formData[input.name] = input.value;
-                }
+            var btn = form.querySelector("button[type='submit']");
+            if (btn) {
+                btn.textContent = "Guardando, por favor espere...";
+                btn.classList.add("disabled");
+                btn.style.pointerEvents = "none";
             }
         });
-        localStorage.setItem(draftKey, JSON.stringify(formData));
-    });
-
-    // 3. LIMPIAR Y BLOQUEAR BOTON: Borra el borrador al guardar y muestra aviso de carga
-    form.addEventListener("submit", function() {
-        if (modPlanRecognition) {
-            modPlanRecognition.stop();
-        }
-        localStorage.removeItem(draftKey);
-
-        var btn = form.querySelector("button[type='submit']");
-        if (btn) {
-            btn.textContent = "Guardando, por favor espere...";
-            btn.classList.add("disabled");
-            btn.style.pointerEvents = "none";
-        }
-    });
+    }
 });
 </script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}
