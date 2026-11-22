@@ -586,6 +586,23 @@ with app.app_context():
         dra_camila.full_name = 'Dra. Camila Chaparro'
         db.session.commit()
 
+    # Usuario de prueba de 7 días para Dra. Tamires Soster (agenda e historial totalmente separados)
+    dra_tamires = User.query.filter_by(username='tamires.soster').first()
+    if not dra_tamires:
+        hashed_pw_tamires = generate_password_hash('tamires12345', method='pbkdf2:sha256')
+        exp_tamires = (date.today() + timedelta(days=7)).strftime('%Y-%m-%d')
+        dra_tamires = User(
+            username='tamires.soster',
+            full_name='Dra. Tamires Soster',
+            password_hash=hashed_pw_tamires,
+            expiry_date=exp_tamires
+        )
+        db.session.add(dra_tamires)
+        db.session.commit()
+    elif not dra_tamires.full_name:
+        dra_tamires.full_name = 'Dra. Tamires Soster'
+        db.session.commit()
+
 def get_current_user():
     uid = session.get('user_id')
     return User.query.get(uid) if uid else None
@@ -646,6 +663,8 @@ def login():
                 session['user_name'] = 'Dra. Alejandra Müller'
             elif username == 'camila.chaparro':
                 session['user_name'] = 'Dra. Camila Chaparro'
+            elif username == 'tamires.soster':
+                session['user_name'] = 'Dra. Tamires Soster'
             else:
                 session['user_name'] = 'Administrador'
                 
@@ -773,7 +792,7 @@ def edit_patient(id):
         patient.cant_hijos = request.form.get('cant_hijos') or patient.cant_hijos
         patient.menarca = format_text(request.form.get('menarca')) or patient.menarca
         patient.menstruacion_regular = request.form.get('menstruacion_regular') or patient.menstruacion_regular
-        patient.anticonceptivos = request.form.get('anticonceptivos') or patient.anticonceptivos
+        patient.anticonceptivos = format_text(request.form.get('anticonceptivos')) or patient.anticonceptivos
         patient.checklist_glp1_notas = format_text(request.form.get('checklist_glp1_notas')) or patient.checklist_glp1_notas
         patient.calidad_sueno = format_text(request.form.get('calidad_sueno')) or patient.calidad_sueno
         patient.actividad_fisica = format_text(request.form.get('actividad_fisica')) or patient.actividad_fisica
