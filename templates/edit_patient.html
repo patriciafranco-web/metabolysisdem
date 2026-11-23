@@ -1,226 +1,107 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-    .field-header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 6px;
-        flex-wrap: wrap;
-    }
-    .btn-voice-treat {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 3px 9px;
-        font-size: 0.76rem;
-        font-weight: 500;
-        border-radius: 5px;
-        border: 1px solid rgba(255, 183, 3, 0.45);
-        background-color: rgba(255, 183, 3, 0.08);
-        color: #ffd166;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .btn-voice-treat:hover {
-        background-color: rgba(255, 183, 3, 0.16);
-        color: #fff;
-    }
-    .btn-voice-treat.is-recording {
-        border-color: #ef4444;
-        background-color: rgba(239, 68, 68, 0.16);
-        color: #fca5a5;
-    }
-    .voice-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background-color: #94a3b8;
-        display: inline-block;
-    }
-    .btn-voice-treat.is-recording .voice-dot {
-        background-color: #ef4444;
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
-        animation: voicePulse 1.3s infinite;
-    }
-    @keyframes voicePulse {
-        0% { transform: scale(0.95); opacity: 1; }
-        70% { transform: scale(1.15); opacity: 0.75; }
-        100% { transform: scale(0.95); opacity: 1; }
-    }
-</style>
-
-<div class="container pb-5" style="max-width: 900px;">
+<div class="container pb-5" style="max-width: 950px;">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-outline-secondary btn-sm">Volver al Perfil</a>
-        <h2 class="text-warning fw-bold m-0 fs-4">Plan Medico y Tratamiento</h2>
+        <h2 class="text-warning fw-bold m-0 fs-4">Editar Datos del Paciente</h2>
     </div>
 
     <div class="card p-4 shadow-sm" style="background-color: #1e1e1e; border: 1px solid #333;">
-        <h5 class="text-info mb-3">Paciente: {{ patient.full_name }} (CI: {{ patient.ci }})</h5>
+        <h5 class="text-info mb-3">{{ patient.full_name }}</h5>
 
-        <form method="POST" action="{{ url_for('edit_treatment', patient_id=patient.id) }}" enctype="multipart/form-data">
-            <div class="mb-3">
-                <div class="field-header-row">
-                    <label class="form-label text-light fw-bold m-0">Indicaciones Terapeuticas / Plan a Seguir</label>
-                    <button type="button" class="btn-voice-treat" data-target="indicaciones_tratamiento" onclick="toggleDictadoPlan(this)">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="22"></line>
-                        </svg>
-                        <span class="voice-label">Dictar</span>
-                        <span class="voice-dot"></span>
-                    </button>
-                </div>
-                <textarea class="form-control bg-dark text-white border-secondary" name="indicaciones_tratamiento" rows="5" placeholder="Escriba o dicte el plan medico, pautas nutricionales o indicaciones generales...">{{ record.indicaciones_tratamiento if record else '' }}</textarea>
-            </div>
-
-            <div class="mb-3">
-                <div class="field-header-row">
-                    <label class="form-label text-light fw-bold m-0">Medicacion Recetada</label>
-                    <button type="button" class="btn-voice-treat" data-target="medications" onclick="toggleDictadoPlan(this)">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="22"></line>
-                        </svg>
-                        <span class="voice-label">Dictar</span>
-                        <span class="voice-dot"></span>
-                    </button>
-                </div>
-                <textarea class="form-control bg-dark text-white border-secondary" name="medications" rows="3" placeholder="Detalle o dicte los farmacos, dosis y frecuencias...">{{ record.medications if record else '' }}</textarea>
-            </div>
-
+        <form method="POST" action="{{ url_for('edit_patient', id=patient.id) }}">
+            <h6 class="text-warning fw-bold mb-3">Datos Personales y Filiación</h6>
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                    <label class="form-label text-light">Proximo Control</label>
-                    <input type="text" class="form-control bg-dark text-white border-secondary" name="proximo_control" value="{{ record.proximo_control if record else '' }}" placeholder="Ej. 1 mes, 3 meses...">
+                    <label class="form-label text-light">Nombre Completo</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="full_name" value="{{ patient.full_name or '' }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Cédula (CI)</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="ci" value="{{ patient.ci or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Sexo</label>
+                    <select class="form-select bg-dark text-white border-secondary" name="gender">
+                        <option value="Mujer" {% if patient.gender == 'Mujer' %}selected{% endif %}>Mujer</option>
+                        <option value="Hombre" {% if patient.gender == 'Hombre' %}selected{% endif %}>Hombre</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Fecha de Nacimiento</label>
+                    <input type="date" class="form-control bg-dark text-white border-secondary" name="birth_date" value="{{ patient.birth_date or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Edad (años)</label>
+                    <input type="number" class="form-control bg-dark text-white border-secondary" name="age" value="{{ patient.age or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-light">Teléfono</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="phone" value="{{ patient.phone or '' }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label text-light">Conducta Medica</label>
-                    <input type="text" class="form-control bg-dark text-white border-secondary" name="conducta_medica" value="{{ record.conducta_medica if record else '' }}" placeholder="Ej. Derivacion, estudios pendientes...">
+                    <label class="form-label text-light">Sanatorio / Consultorio</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="sanatorio" value="{{ patient.sanatorio or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Procedencia</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="procedencia" value="{{ patient.procedencia or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Profesión</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="profession" value="{{ patient.profession or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Seguro Médico</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="seguro_medico" value="{{ patient.seguro_medico or '' }}">
                 </div>
             </div>
 
-            <div class="card bg-black border-secondary p-3 mb-4">
-                <h6 class="text-danger fw-semibold mb-3">Adjuntar Estudio o Foto Complementaria</h6>
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label text-light">Categoria</label>
-                        <select class="form-select bg-dark text-white border-secondary" name="photo_category">
-                            <option value="Evolución">Control / Evolucion</option>
-                            <option value="Estudios / Ecografía">Estudio / Ecografia / TAC</option>
-                            <option value="Antes">Foto Inicial (Antes)</option>
-                            <option value="Después">Resultado Final (Despues)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-5">
-                        <label class="form-label text-light">Seleccionar Archivo / Imagen</label>
-                        <input type="file" class="form-control bg-dark text-white border-secondary" name="photo" accept="image/*,.pdf">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-light">Notas del Archivo</label>
-                        <input type="text" class="form-control bg-dark text-white border-secondary" name="photo_notes" placeholder="Ej. Ecografia...">
-                    </div>
+            <h6 class="text-warning fw-bold mb-3">Antecedentes y Contexto Clínico</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label text-light">Patología Principal</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="pathology_type" value="{{ patient.pathology_type or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Años de Evolución</label>
+                    <input type="number" class="form-control bg-dark text-white border-secondary" name="evolution_years" value="{{ patient.evolution_years or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-light">Inicio Tratamiento</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="fecha_inicio_tratamiento" value="{{ patient.fecha_inicio_tratamiento or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Comorbilidades</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="comorbidities" value="{{ patient.comorbidities or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Tratamiento Base</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="tratamiento_base" value="{{ patient.tratamiento_base or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Antecedentes Personales</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="antecedentes_personales" rows="2">{{ patient.antecedentes_personales or '' }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Antecedentes Familiares</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" name="antecedentes_familiares" rows="2">{{ patient.antecedentes_familiares or '' }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Cirugías Previas</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="historial_cirugias" value="{{ patient.historial_cirugias or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-light">Alergia a Fármacos</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" name="alergia_farmacos" value="{{ patient.alergia_farmacos or '' }}">
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-warning fw-bold text-dark w-100 py-3 mt-2 fs-5">Guardar Plan y Tratamiento</button>
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a href="{{ url_for('patient_detail', id=patient.id) }}" class="btn btn-secondary px-4">Cancelar</a>
+                <button type="submit" class="btn btn-warning fw-bold text-dark px-4">Guardar Datos del Paciente</button>
+            </div>
         </form>
     </div>
 </div>
-
-<script>
-let planRecognition = null;
-let planActiveButton = null;
-
-function resetPlanVoiceButton(btn) {
-    if (!btn) return;
-    btn.classList.remove("is-recording");
-    const lbl = btn.querySelector(".voice-label");
-    if (lbl) lbl.textContent = "Dictar";
-}
-
-function toggleDictadoPlan(btn) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    if (planActiveButton === btn && planRecognition) {
-        planRecognition.stop();
-        return;
-    }
-
-    if (planRecognition) {
-        planRecognition.stop();
-    }
-
-    const targetName = btn.getAttribute("data-target");
-    const campo = document.querySelector('[name="' + targetName + '"]');
-    if (!campo) return;
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "es-PY";
-    recognition.continuous = true;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-        planRecognition = recognition;
-        planActiveButton = btn;
-        btn.classList.add("is-recording");
-        const lbl = btn.querySelector(".voice-label");
-        if (lbl) lbl.textContent = "Detener";
-    };
-
-    recognition.onresult = (event) => {
-        let nuevoTexto = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-                nuevoTexto += event.results[i][0].transcript + " ";
-            }
-        }
-        if (nuevoTexto.trim()) {
-            const sep = campo.value && !campo.value.endsWith(" ") && !campo.value.endsWith("\n") ? " " : "";
-            campo.value += sep + nuevoTexto.trim();
-            campo.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-    };
-
-    recognition.onerror = () => {
-        resetPlanVoiceButton(btn);
-        if (planActiveButton === btn) {
-            planRecognition = null;
-            planActiveButton = null;
-        }
-    };
-
-    recognition.onend = () => {
-        resetPlanVoiceButton(btn);
-        if (planActiveButton === btn) {
-            planRecognition = null;
-            planActiveButton = null;
-        }
-    };
-
-    recognition.start();
-}
-
-document.addEventListener("DOMContentLoaded", function() {
-    var form = document.querySelector("form");
-    if (form) {
-        form.addEventListener("submit", function() {
-            if (planRecognition) {
-                planRecognition.stop();
-            }
-            var btn = form.querySelector("button[type='submit']");
-            if (btn) {
-                btn.textContent = "Guardando, por favor espere...";
-                btn.classList.add("disabled");
-                btn.style.pointerEvents = "none";
-            }
-        });
-    }
-});
-</script>
 {% endblock %}
