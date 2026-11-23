@@ -166,7 +166,6 @@ NOTA MÉDICA:
         payload = {
             "model": modelo,
             "max_tokens": 1400,
-            "temperature": 0,
             "messages": [
                 {"role": "user", "content": prompt}
             ]
@@ -293,7 +292,6 @@ HISTORIAL WORD:
         payload = {
             "model": modelo,
             "max_tokens": 4000,
-            "temperature": 0,
             "messages": [
                 {"role": "user", "content": prompt}
             ]
