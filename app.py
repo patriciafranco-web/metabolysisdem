@@ -22,6 +22,15 @@ try:
 except ImportError:
     docx = None
 
+# Importación opcional para leer archivos PDF (.pdf)
+try:
+    from pypdf import PdfReader as _PdfReader
+except ImportError:
+    try:
+        from PyPDF2 import PdfReader as _PdfReader
+    except ImportError:
+        _PdfReader = None
+
 app = Flask(__name__)
 
 # --- CONFIGURACIÓN DE DISCO SEGURO PARA RENDER ---
@@ -32,7 +41,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'metabolisys_secreto_seguro_2026'
 
 UPLOAD_FOLDER = os.path.join(DATA_DIR, 'uploads')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'docx'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'docx', 'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 if not os.path.exists(UPLOAD_FOLDER):
@@ -220,17 +229,22 @@ NOTA MÉDICA:
 
 def _llamar_ia_bloque_historial(bloque_texto, fecha_por_defecto, api_key, modelo):
     prompt = f"""
-Eres un asistente médico experto en extracción clínica fiel en español.
-Lee este fragmento de historial clínico y separa cada consulta o control según su fecha explícita en formato `YYYY-MM-DD`.
-Si un bloque no tiene fecha propia clara, usa "{fecha_por_defecto}".
+Eres un asistente médico experto en estructurar historiales clínicos en español (Paraguay/Latinoamérica).
+Analiza este texto clínico (de Word o PDF) y separa CADA consulta, control o evaluación según su FECHA PROPIA en formato `YYYY-MM-DD`.
+Solo si un bloque NO tiene ninguna fecha explícita propia, usa "{fecha_por_defecto}".
 
-Reglas:
-1. Convierte fechas cortas `DD.MM.AA` o `DD/MM/AA` a `YYYY-MM-DD` (ej. `27.03.26` -> `2026-03-27`). Si hay fecha distinta de laboratorio/evaluación (ej. `26.03.26`), ponla en `lab_date`.
-2. En `notes`, coloca el texto de ese bloque sin saltos de línea literales (usa espacio o `\\n`) y escapando comillas dobles (`\\"`).
-3. Extrae SOLO los valores explícitos en ese bloque; pon `null` si no figuran. No inventes datos.
-4. Números con punto decimal y sin unidades (`MM` -> `muscle_mass_kg`, `%grasa` -> `body_fat_pct`, fármacos -> `medications`, plan/indicaciones -> `indicaciones_tratamiento`, control -> `proximo_control`).
+Reglas OBLIGATORIAS de fechas y ubicación de resultados:
+1. Convierte cualquier fecha corta o de documento (`DD.MM.AA`, `DD/MM/AA`, `DD-MM-AA`, `DD/MM/AAAA`) a `YYYY-MM-DD` (ej. `27.03.26` -> `2026-03-27`, `28.04.26` -> `2026-04-28`, `29.04.26` -> `2026-04-29`).
+2. CADA consulta o bloque con fecha distinta debe ir como un elemento SEPARADO en `"consultas"` con su propio `"date"` (`YYYY-MM-DD`). NUNCA mezcles ni dejes todos con la fecha de hoy si el texto trae fechas propias.
+3. Si dentro de una consulta hay una fecha distinta de laboratorio o evaluación nutricional (ej. `Eval nutr Inbody 26.03.26` o `Lab 16/01/2026`), pon esa fecha en `"lab_date"` (`YYYY-MM-DD`) y deja `"date"` con la fecha de la consulta.
+4. Coloca en cada consulta ÚNICAMENTE los resultados de ese bloque (si no están en ese bloque, pon `null`; NO copies datos de otra consulta ni inventes valores):
+   - Peso de la consulta/día -> `"weight"` (si hay evaluación previa y peso del día, usa el del día en `"weight"` y conserva el detalle en `"notes"`).
+   - `MM` o masa muscular -> `"muscle_mass_kg"`, `%grasa` -> `"body_fat_pct"`, grasa en kg -> `"body_fat_kg"`, grasa visceral / `GV` -> `"visceral_fat"`, cintura -> `"waist"`, `PA` -> `"pa"`, `FC` -> `"fc"`.
+   - Glicemia / `Glic` -> `"glucose"`, Insulina -> `"insulin"`, `HbA1c` -> `"hba1c"`, `triglycerides`, `cholesterol_tot`, `hdl`, `ldl`, `vldl`, `tsh`, `t4`, `t3`, `vit_d`, `vit_b12`, `platelets`, etc.
+   - Fármacos y dosis -> `"medications"`, plan/indicaciones -> `"indicaciones_tratamiento"`, próximo control -> `"proximo_control"`.
+5. En `"notes"`, pon el texto de ese bloque sin saltos de línea literales (usa `\\n`) y escapando comillas dobles (`\\"`).
 
-Responde ÚNICAMENTE con JSON válido:
+Devuelve EXCLUSIVAMENTE un objeto JSON válido:
 {{
   "consultas": [
     {{
@@ -297,10 +311,10 @@ TEXTO:
     }
     payload = {
         "model": modelo,
-        "max_tokens": 2000,
+        "max_tokens": 2500,
         "messages": [{"role": "user", "content": prompt}]
     }
-    resp = requests.post(url, headers=headers, json=payload, timeout=18)
+    resp = requests.post(url, headers=headers, json=payload, timeout=20)
     if resp.status_code != 200:
         raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:140]}")
     blocks = resp.json().get("content", [])
@@ -997,7 +1011,7 @@ def patient_detail(id):
         today_str=today_str
     )
 
-# --- RUTA PARA SUBIR Y PREVISUALIZAR ARCHIVO WORD (.docx) ---
+# --- RUTA PARA SUBIR Y PREVISUALIZAR ARCHIVO WORD (.docx) O PDF (.pdf) ---
 @app.route('/patient/import_docx/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
 def import_docx(patient_id):
@@ -1025,21 +1039,36 @@ def import_docx(patient_id):
                     partes.append(" | ".join(celdas_limpias))
         return "\n".join(partes)
 
+    def extraer_texto_pdf(pdf_bytes):
+        if _PdfReader is None:
+            raise RuntimeError("Falta instalar pypdf o PyPDF2 en requirements.txt para leer archivos .pdf.")
+        reader = _PdfReader(io.BytesIO(pdf_bytes))
+        paginas = []
+        for page in reader.pages:
+            txt = page.extract_text() or ""
+            if txt.strip():
+                paginas.append(txt.strip())
+        return "\n".join(paginas)
+
     if request.method == 'POST':
         action = request.form.get('action')
 
         if action == 'upload':
             file = request.files.get('word_file')
             if not file or not file.filename:
-                flash("Seleccione un archivo .docx antes de continuar.", "warning")
+                flash("Seleccione un archivo .docx o .pdf antes de continuar.", "warning")
                 return redirect(url_for('import_docx', patient_id=patient.id))
 
-            if docx is None:
+            fname_lower = file.filename.lower()
+            es_docx = fname_lower.endswith('.docx')
+            es_pdf = fname_lower.endswith('.pdf')
+
+            if not es_docx and not es_pdf:
+                flash("Solo se admiten archivos con extensión .docx o .pdf.", "warning")
+                return redirect(url_for('import_docx', patient_id=patient.id))
+
+            if es_docx and docx is None:
                 flash("Falta instalar python-docx en el servidor (agréguelo a requirements.txt).", "danger")
-                return redirect(url_for('import_docx', patient_id=patient.id))
-
-            if not file.filename.lower().endswith('.docx'):
-                flash("Solo se admiten archivos con extensión .docx.", "warning")
                 return redirect(url_for('import_docx', patient_id=patient.id))
 
             try:
@@ -1048,11 +1077,14 @@ def import_docx(patient_id):
                     flash("El archivo seleccionado está vacío o no pudo leerse desde el equipo/nube.", "warning")
                     return redirect(url_for('import_docx', patient_id=patient.id))
 
-                doc = docx.Document(io.BytesIO(raw_bytes))
-                extracted_text = extraer_texto_docx(doc)
+                if es_docx:
+                    doc = docx.Document(io.BytesIO(raw_bytes))
+                    extracted_text = extraer_texto_docx(doc)
+                else:
+                    extracted_text = extraer_texto_pdf(raw_bytes)
 
                 if not extracted_text.strip():
-                    flash("El documento .docx se abrió, pero no contiene texto legible.", "warning")
+                    flash("El documento se abrió, pero no contiene texto legible.", "warning")
                     return redirect(url_for('import_docx', patient_id=patient.id))
 
                 filename = secure_filename(f"historial_{patient.id}_{file.filename}")
@@ -1061,14 +1093,14 @@ def import_docx(patient_id):
                     with open(filepath, 'wb') as f_out:
                         f_out.write(raw_bytes)
                 except Exception as save_err:
-                    print(f"AVISO guardando copia DOCX: {save_err}", flush=True)
+                    print(f"AVISO guardando copia archivo: {save_err}", flush=True)
 
                 session[session_key_text] = extracted_text
                 session[session_key_file] = filename
                 return redirect(url_for('import_docx', patient_id=patient.id))
             except Exception as e:
-                print(f"ERROR LEYENDO DOCX: {e}", flush=True)
-                flash(f"No se pudo leer el archivo .docx: {e}", "danger")
+                print(f"ERROR LEYENDO ARCHIVO: {e}", flush=True)
+                flash(f"No se pudo leer el archivo: {e}", "danger")
                 return redirect(url_for('import_docx', patient_id=patient.id))
 
         elif action == 'confirm':
@@ -1168,7 +1200,7 @@ def import_docx(patient_id):
                         height=altura_base,
                         weight=None,
                         notes=final_text,
-                        indicaciones_tratamiento="Ver historial importado en notas de Word."
+                        indicaciones_tratamiento="Ver historial importado en notas."
                     )
                     db.session.add(record)
                     db.session.commit()
