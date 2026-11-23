@@ -75,17 +75,28 @@ def extraer_datos_con_ia(texto_consulta):
         return {}
 
     prompt = f"""
-Eres un asistente médico experto en extracción de datos clínicos en español (Paraguay/Latinoamérica).
-Lee la siguiente nota de consulta médica escrita en texto libre y extrae ÚNICAMENTE los valores que aparezcan explícitamente en el texto.
-Si un dato NO está mencionado, devuélvelo como null. NO inventes ni asumas valores.
-Para valores numéricos devuelve solo el número con punto decimal, sin unidades (ej: 76.25).
-Nota sobre plaquetas: si aparecen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250). Si ya está en cientos (ej. 250), déjalo así.
-Si hay fecha explícita de laboratorio distinta a la consulta, ponla en lab_date en formato YYYY-MM-DD; si no, null.
+Eres un asistente médico experto en extracción fiel de datos clínicos en español (Paraguay/Latinoamérica).
+Lee la siguiente nota de consulta médica tal como está escrita y extrae ÚNICAMENTE los valores que aparezcan explícitamente en el texto.
+NO inventes, NO completes por deducción ni asumas valores que no estén escritos.
+Respeta el texto original y las abreviaturas tal como aparecen en la nota.
+
+Reglas de interpretación estricta:
+1. Para valores numéricos devuelve solo el número con punto decimal (ej. 76.25), sin unidades. Si hay dos pesos mencionados (ej. uno de evaluación previa y otro "hoy"), toma el peso actual/del día en `weight` y deja el detalle completo en `notes`.
+2. Fechas cortas como `DD.MM.AA` o `DD/MM/AA` (por ejemplo `27.03.26` -> `2026-03-27`, `29.04.26` -> `2026-04-29`): si hay fecha explícita de laboratorio distinta a la consulta, ponla en `lab_date` en formato `YYYY-MM-DD`; si no, `null`.
+3. Abreviaturas comunes en consultas/evaluaciones:
+   - `MM` o masa muscular -> `muscle_mass_kg`
+   - `%grasa` o grasa corporal % -> `body_fat_pct`
+   - `PA` o presión arterial -> `pa`
+   - `FC` -> `fc`
+   - `Tirze` / tirzepatida / fármacos y dosis -> `medications`
+   - Plan, indicaciones, dieta, pedidos -> `indicaciones_tratamiento`
+   - Próximo control / retorno (ej. `Control en 1 mes`) -> `proximo_control`
+   - Plaquetas: si vienen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo igual.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques markdown) con estas claves exactas:
 {{
   "lab_date": "string YYYY-MM-DD o null",
-  "pa": "string o null (ej. '110/70')",
+  "pa": "string o null",
   "fc": "int o null",
   "height": "float en cm o null",
   "weight": "float en kg o null",
@@ -123,12 +134,12 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
   "phosphorus": "float o null",
   "chlorine": "float o null",
   "platelets": "float o null",
-  "otros_laboratorios": "string o null (otros resultados de laboratorio no listados arriba, ej. CK total, hemoglobina, perfil hormonal)",
+  "otros_laboratorios": "string o null",
   "ecografia_abdominal": "string o null",
   "ecografia_tiroidea": "string o null",
-  "otros_estudios": "string o null (otros estudios de imagen o complementarios)",
-  "medications": "string o null (fármacos y dosis indicadas)",
-  "indicaciones_tratamiento": "string o null (plan, pedidos de estudios, pautas)",
+  "otros_estudios": "string o null",
+  "medications": "string o null",
+  "indicaciones_tratamiento": "string o null",
   "proximo_control": "string o null"
 }}
 
@@ -143,23 +154,23 @@ NOTA MÉDICA:
     }
 
     modelos_candidatos = [
-        "claude-sonnet-5-5",
-        "claude-sonnet-5.5",
         "claude-sonnet-4-6",
-        "claude-haiku-4-5-20251001"
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-5-5",
+        "claude-sonnet-5.5"
     ]
 
     for modelo in modelos_candidatos:
         payload = {
             "model": modelo,
-            "max_tokens": 1200,
+            "max_tokens": 1400,
             "temperature": 0,
             "messages": [
                 {"role": "user", "content": prompt}
             ]
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=25)
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
             if resp.status_code == 200:
                 print(f"IA OK usando modelo: {modelo}", flush=True)
                 content_blocks = resp.json().get("content", [])
@@ -175,6 +186,7 @@ NOTA MÉDICA:
             print(f"IA EXCEPTION (Claude {modelo}): {e}", flush=True)
     return {}
 
+
 def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
@@ -184,14 +196,23 @@ def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
         return []
 
     prompt = f"""
-Eres un asistente médico experto en extracción de datos clínicos en español (Paraguay/Latinoamérica).
-Lee el siguiente historial o notas clínicas (que puede contener una o varias consultas o controles en distintas fechas).
-Separa cada consulta o bloque de datos clínicos por su fecha explícita en formato YYYY-MM-DD.
+Eres un asistente médico experto en extracción fiel de historiales clínicos en español (Paraguay/Latinoamérica).
+Lee el historial clínico completo tal como está escrito (puede contener una o varias consultas o controles en distintas fechas).
+Separa cada consulta o bloque clínico según su fecha explícita en formato `YYYY-MM-DD`.
 Si un bloque no tiene fecha propia clara, usa "{fecha_por_defecto}".
-Extrae ÚNICAMENTE los valores que aparezcan explícitamente en cada bloque; si un dato no aparece, pon null. NO inventes valores.
-Para valores numéricos devuelve solo el número con punto decimal, sin unidades (ej: 76.25).
-Nota sobre plaquetas: si aparecen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo así.
-Si hay fecha explícita de laboratorio distinta a la consulta, ponla en lab_date en formato YYYY-MM-DD; si no, null.
+
+Reglas estrictas de fidelidad:
+1. Convierte fechas cortas `DD.MM.AA` o `DD/MM/AA` al formato `YYYY-MM-DD` (ej. `27.03.26` -> `2026-03-27`, `29.04.26` -> `2026-04-29`). Si aparece una fecha de evaluación o laboratorio distinta (ej. `26.03.26` dentro de una consulta del `27.03.26`), colócala en `lab_date` cuando corresponda.
+2. En cada consulta, guarda en `notes` el texto literal o fiel de ese bloque tal como está escrito (sin resumirlo perdiendo detalles ni reescribirlo con palabras inventadas).
+3. Extrae en los campos numéricos/clínicos ÚNICAMENTE los valores que aparezcan explícitamente en ese bloque; si un dato no figura, pon `null`. NO inventes valores.
+4. Para valores numéricos devuelve solo el número con punto decimal (ej. 98.3), sin unidades.
+   - `MM` o masa muscular -> `muscle_mass_kg`
+   - `%grasa` -> `body_fat_pct`
+   - Si hay peso de evaluación previa y peso del día (ej. "Eval nutr Inbody 26.03.26: peso 97.4 kg ... Peso hoy 27.03.26: 98.3"), usa el peso de la consulta/día en `weight` y conserva todo en `notes`.
+   - Medicación (ej. `Tirze 5mg`, `candesartan 8mg`, etc.) -> `medications`
+   - Plan / indicaciones -> `indicaciones_tratamiento`
+   - Próximo control (ej. `Control en 1 mes`) -> `proximo_control`
+   - Plaquetas: si vienen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo igual.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques markdown) con esta estructura:
 {{
@@ -244,7 +265,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
       "medications": "string o null",
       "indicaciones_tratamiento": "string o null",
       "proximo_control": "string o null",
-      "notes": "string con el texto o resumen de esa consulta"
+      "notes": "string con el texto fiel de esa consulta"
     }}
   ]
 }}
@@ -260,24 +281,25 @@ HISTORIAL WORD:
     }
 
     modelos_candidatos = [
-        "claude-sonnet-5-5",
-        "claude-sonnet-5.5",
         "claude-sonnet-4-6",
-        "claude-haiku-4-5-20251001"
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-5-5",
+        "claude-sonnet-5.5"
     ]
 
     for modelo in modelos_candidatos:
         payload = {
             "model": modelo,
-            "max_tokens": 3500,
+            "max_tokens": 4000,
             "temperature": 0,
             "messages": [
                 {"role": "user", "content": prompt}
             ]
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=40)
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
             if resp.status_code == 200:
+                print(f"IA HISTORIAL OK usando modelo: {modelo}", flush=True)
                 content_blocks = resp.json().get("content", [])
                 raw_text = "".join(
                     block.get("text", "") for block in content_blocks if block.get("type") == "text"
@@ -343,8 +365,8 @@ class Patient(db.Model):
 class MedicalRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
-    date = db.Column(db.String(20), nullable=False) # Fecha de consulta
-    lab_date = db.Column(db.String(20), nullable=True) # Fecha independiente de laboratorios
+    date = db.Column(db.String(20), nullable=False)
+    lab_date = db.Column(db.String(20), nullable=True)
     
     marca_balanza = db.Column(db.String(50))
     pa = db.Column(db.String(20))
@@ -417,7 +439,7 @@ class MedicalRecord(db.Model):
     indicaciones_tratamiento = db.Column(db.Text)
     medications = db.Column(db.Text)
     proximo_control = db.Column(db.String(30))
-    notes = db.Column(db.Text) # Evolución, mejorías, dificultades de la consulta
+    notes = db.Column(db.Text)
     conducta_medica = db.Column(db.Text)
 
     @property
@@ -508,7 +530,6 @@ def recalculate_deltas(patient_id):
 with app.app_context():
     db.create_all()
 
-    # Migraciones seguras (no borran datos)
     try:
         db.session.execute(text('ALTER TABLE medical_record ADD COLUMN platelets FLOAT'))
         db.session.commit()
@@ -537,7 +558,6 @@ with app.app_context():
         admin_user.full_name = 'Administrador'
         db.session.commit()
 
-    # Extensión única de +10 días para alejandra.muller (evita sumar 10 días en cada reinicio)
     EXT_TAG_FILE = os.path.join(DATA_DIR, '.dra_muller_ext_10d')
     dra_muller = User.query.filter_by(username='alejandra.muller').first()
     initial_exp = (date.today() + timedelta(days=20)).strftime('%Y-%m-%d')
@@ -564,12 +584,10 @@ with app.app_context():
             with open(EXT_TAG_FILE, 'w') as f:
                 f.write('applied')
 
-    # Asignar pacientes existentes sin propietario a la Dra. Alejandra Müller para aislar historiales
     if dra_muller:
         Patient.query.filter(Patient.user_id.is_(None)).update({Patient.user_id: dra_muller.id}, synchronize_session=False)
         db.session.commit()
 
-    # Usuario de prueba de 7 días para Dra. Camila Chaparro (agenda e historial totalmente separados)
     dra_camila = User.query.filter_by(username='camila.chaparro').first()
     if not dra_camila:
         hashed_pw_camila = generate_password_hash('camila12345', method='pbkdf2:sha256')
@@ -586,7 +604,6 @@ with app.app_context():
         dra_camila.full_name = 'Dra. Camila Chaparro'
         db.session.commit()
 
-    # Usuario de prueba de 7 días para Dra. Tamires Soster (agenda e historial totalmente separados)
     dra_tamires = User.query.filter_by(username='tamires.soster').first()
     if not dra_tamires:
         hashed_pw_tamires = generate_password_hash('tamires12345', method='pbkdf2:sha256')
@@ -825,7 +842,6 @@ def patient_detail(id):
     all_records = sorted(patient.records, key=lambda x: (x.date or '', x.id), reverse=True)
     today_str = date.today().strftime('%Y-%m-%d')
 
-    # Guardado directo desde el recuadro de texto libre con clasificación por IA
     if request.method == 'POST':
         fecha = request.form.get('date') or today_str
         nota_libre = request.form.get('nota_libre', '').strip()
@@ -845,7 +861,6 @@ def patient_detail(id):
                     return None
                 return parse_int(val)
 
-            # Si no escribió altura hoy, hereda la última registrada para seguir calculando IMC/ICA
             altura_final = get_num('height')
             if not altura_final:
                 altura_final = next((r.height for r in all_records if r.height), None)
