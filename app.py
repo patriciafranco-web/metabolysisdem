@@ -792,7 +792,7 @@ def edit_patient(id):
         patient.cant_hijos = request.form.get('cant_hijos') or patient.cant_hijos
         patient.menarca = format_text(request.form.get('menarca')) or patient.menarca
         patient.menstruacion_regular = request.form.get('menstruacion_regular') or patient.menstruacion_regular
-        patient.anticonceptivos = request.form.get('anticonceptivos') or patient.anticonceptivos
+        patient.anticonceptivos = format_text(request.form.get('anticonceptivos')) or patient.anticonceptivos
         patient.checklist_glp1_notas = format_text(request.form.get('checklist_glp1_notas')) or patient.checklist_glp1_notas
         patient.calidad_sueno = format_text(request.form.get('calidad_sueno')) or patient.calidad_sueno
         patient.actividad_fisica = format_text(request.form.get('actividad_fisica')) or patient.actividad_fisica
@@ -942,6 +942,22 @@ def import_docx(patient_id):
     session_key_text = f"docx_preview_text_{patient.id}"
     session_key_file = f"docx_preview_file_{patient.id}"
 
+    def extraer_texto_docx(doc_obj):
+        partes = []
+        for p in doc_obj.paragraphs:
+            if p.text and p.text.strip():
+                partes.append(p.text.strip())
+        for table in doc_obj.tables:
+            for row in table.rows:
+                celdas = [c.text.strip() for c in row.cells if c.text and c.text.strip()]
+                celdas_limpias = []
+                for c in celdas:
+                    if not celdas_limpias or celdas_limpias[-1] != c:
+                        celdas_limpias.append(c)
+                if celdas_limpias:
+                    partes.append(" | ".join(celdas_limpias))
+        return "\n".join(partes)
+
     if request.method == 'POST':
         action = request.form.get('action')
 
@@ -952,7 +968,7 @@ def import_docx(patient_id):
                 return redirect(url_for('import_docx', patient_id=patient.id))
 
             if docx is None:
-                flash("La librería python-docx no está instalada en el servidor.", "danger")
+                flash("Falta instalar python-docx en el servidor (agréguelo a requirements.txt).", "danger")
                 return redirect(url_for('import_docx', patient_id=patient.id))
 
             if not file.filename.lower().endswith('.docx'):
@@ -960,19 +976,32 @@ def import_docx(patient_id):
                 return redirect(url_for('import_docx', patient_id=patient.id))
 
             try:
-                filename = secure_filename(f"historial_{patient.id}_{file.filename}")
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
+                raw_bytes = file.read()
+                if not raw_bytes:
+                    flash("El archivo seleccionado está vacío o no pudo leerse desde el equipo/nube.", "warning")
+                    return redirect(url_for('import_docx', patient_id=patient.id))
 
-                doc = docx.Document(filepath)
-                extracted_text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+                doc = docx.Document(io.BytesIO(raw_bytes))
+                extracted_text = extraer_texto_docx(doc)
+
+                if not extracted_text.strip():
+                    flash("El documento .docx se abrió, pero no contiene texto legible.", "warning")
+                    return redirect(url_for('import_docx', patient_id=patient.id))
+
+                filename = secure_filename(f"historial_{patient.id}_{file.filename}")
+                try:
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    with open(filepath, 'wb') as f_out:
+                        f_out.write(raw_bytes)
+                except Exception as save_err:
+                    print(f"AVISO guardando copia DOCX: {save_err}", flush=True)
 
                 session[session_key_text] = extracted_text
                 session[session_key_file] = filename
                 return redirect(url_for('import_docx', patient_id=patient.id))
             except Exception as e:
                 print(f"ERROR LEYENDO DOCX: {e}", flush=True)
-                flash("No se pudo leer el archivo .docx. Verifique que no esté dañado.", "danger")
+                flash(f"No se pudo leer el archivo .docx: {e}", "danger")
                 return redirect(url_for('import_docx', patient_id=patient.id))
 
         elif action == 'confirm':
