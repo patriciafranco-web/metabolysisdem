@@ -128,20 +128,25 @@ Respeta el texto original y las abreviaturas tal como aparecen en la nota.
 Reglas de interpretación estricta:
 1. Para valores numéricos devuelve solo el número con punto decimal (ej. 76.25), sin unidades. Si hay dos pesos mencionados (ej. uno de evaluación previa y otro "hoy"), toma el peso actual/del día en `weight` y deja el detalle completo en `notes`.
 2. Fechas cortas como `DD.MM.AA` o `DD/MM/AA` (por ejemplo `27.03.26` -> `2026-03-27`, `29.04.26` -> `2026-04-29`): si hay fecha explícita de laboratorio distinta a la consulta, ponla en `lab_date` en formato `YYYY-MM-DD`; si no, `null`.
-3. Abreviaturas comunes en consultas/evaluaciones:
+3. `Inbody` / `InBody` / `Eval nutr Inbody`: NO es un estudio de imagen ni va a `otros_estudios`. Es composición corporal / balanza:
+   - Si menciona `Inbody` o `InBody`, pon `"InBody"` en `marca_balanza`.
+   - El peso de la consulta/día va a `weight` (si hay un peso de evaluación previa como `Eval nutr Inbody 26.03.26: peso 97.4 kg` y otro `Peso hoy 27.03.26: 98.3`, toma el peso del día/consulta en `weight` y conserva todo el detalle en `notes`).
    - `MM` o masa muscular -> `muscle_mass_kg`
-   - `%grasa` o grasa corporal % -> `body_fat_pct`
+   - `Grasa ...%` o `%grasa` -> `body_fat_pct`
    - `GV` o grasa visceral -> `visceral_fat`
+4. Abreviaturas comunes en consultas/evaluaciones:
    - `PA` o presión arterial -> `pa`
    - `FC` -> `fc`
    - `Tirze` / tirzepatida / fármacos y dosis -> `medications`
    - Plan, indicaciones, dieta, pedidos -> `indicaciones_tratamiento`
    - Próximo control / retorno (ej. `Control en 1 mes`) -> `proximo_control`
    - Plaquetas: si vienen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo igual.
+   - `otros_estudios`: úsalo ÚNICAMENTE para estudios complementarios como ecografías, Doppler, tomografías, resonancias, holter, MAPA, etc., NUNCA para datos de InBody (peso, MM, %grasa, GV).
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques markdown) con estas claves exactas:
 {{
   "lab_date": "string YYYY-MM-DD o null",
+  "marca_balanza": "string o null",
   "pa": "string o null",
   "fc": "int o null",
   "height": "float en cm o null",
@@ -838,6 +843,7 @@ def patient_detail(id):
                 patient_id=patient.id,
                 date=fecha,
                 lab_date=datos.get('lab_date'),
+                marca_balanza=datos.get('marca_balanza'),
                 pa=datos.get('pa'),
                 fc=parse_int(datos.get('fc')),
                 height=altura_final,
@@ -1034,6 +1040,7 @@ def import_docx(patient_id):
                             patient_id=patient.id,
                             date=fecha_item,
                             lab_date=item.get('lab_date'),
+                            marca_balanza=item.get('marca_balanza'),
                             pa=item.get('pa'),
                             fc=parse_int(item.get('fc')),
                             height=altura_item,
