@@ -792,7 +792,7 @@ def edit_patient(id):
         patient.cant_hijos = request.form.get('cant_hijos') or patient.cant_hijos
         patient.menarca = format_text(request.form.get('menarca')) or patient.menarca
         patient.menstruacion_regular = request.form.get('menstruacion_regular') or patient.menstruacion_regular
-        patient.anticonceptivos = format_text(request.form.get('anticonceptivos')) or patient.anticonceptivos
+        patient.anticonceptivos = request.form.get('anticonceptivos') or patient.anticonceptivos
         patient.checklist_glp1_notas = format_text(request.form.get('checklist_glp1_notas')) or patient.checklist_glp1_notas
         patient.calidad_sueno = format_text(request.form.get('calidad_sueno')) or patient.calidad_sueno
         patient.actividad_fisica = format_text(request.form.get('actividad_fisica')) or patient.actividad_fisica
@@ -938,26 +938,48 @@ def import_docx(patient_id):
     if not patient:
         flash("No tiene permisos para acceder a este paciente.", "warning")
         return redirect(url_for('index'))
-    preview_text = request.args.get('preview_text', '')
-    filename_saved = request.args.get('filename_saved', '')
+
+    session_key_text = f"docx_preview_text_{patient.id}"
+    session_key_file = f"docx_preview_file_{patient.id}"
 
     if request.method == 'POST':
         action = request.form.get('action')
-        
-        if action == 'upload' and 'word_file' in request.files:
-            file = request.files['word_file']
-            if file and file.filename.endswith('.docx') and docx is not None:
+
+        if action == 'upload':
+            file = request.files.get('word_file')
+            if not file or not file.filename:
+                flash("Seleccione un archivo .docx antes de continuar.", "warning")
+                return redirect(url_for('import_docx', patient_id=patient.id))
+
+            if docx is None:
+                flash("La librería python-docx no está instalada en el servidor.", "danger")
+                return redirect(url_for('import_docx', patient_id=patient.id))
+
+            if not file.filename.lower().endswith('.docx'):
+                flash("Solo se admiten archivos con extensión .docx.", "warning")
+                return redirect(url_for('import_docx', patient_id=patient.id))
+
+            try:
                 filename = secure_filename(f"historial_{patient.id}_{file.filename}")
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
-                
+
                 doc = docx.Document(filepath)
                 extracted_text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
-                
-                return redirect(url_for('import_docx', patient_id=patient.id, preview_text=extracted_text, filename_saved=filename))
-        
+
+                session[session_key_text] = extracted_text
+                session[session_key_file] = filename
+                return redirect(url_for('import_docx', patient_id=patient.id))
+            except Exception as e:
+                print(f"ERROR LEYENDO DOCX: {e}", flush=True)
+                flash("No se pudo leer el archivo .docx. Verifique que no esté dañado.", "danger")
+                return redirect(url_for('import_docx', patient_id=patient.id))
+
         elif action == 'confirm':
             final_text = request.form.get('final_text', '').strip()
+            session.pop(session_key_text, None)
+            session.pop(session_key_file, None)
+
             if final_text:
                 today_str = date.today().strftime('%Y-%m-%d')
                 consultas = extraer_historial_por_fecha_con_ia(final_text, today_str)
@@ -1058,6 +1080,8 @@ def import_docx(patient_id):
 
                 return redirect(url_for('patient_detail', id=patient.id))
 
+    preview_text = session.get(session_key_text, '')
+    filename_saved = session.get(session_key_file, '')
     return render_template('import_docx.html', patient=patient, preview_text=preview_text, filename_saved=filename_saved)
 
 @app.route('/record/new/<int:patient_id>', methods=['GET', 'POST'])
@@ -1326,7 +1350,7 @@ def export_excel():
                     r.proximo_control, r.homair, r.fib4, r.ica_value, r.conducta_medica
                 ])
         else:
-            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
     output.seek(0)
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=matriz_metabolica_pacientes.csv"})
 
