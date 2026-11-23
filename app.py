@@ -73,6 +73,46 @@ MODELOS_CLAUDE = [
     "claude-haiku-4-5-20251001"
 ]
 
+def _parsear_json_seguro(raw_text):
+    texto = (raw_text or "").strip()
+    if texto.startswith("```"):
+        texto = texto.replace("```json", "").replace("```", "").strip()
+    inicio = texto.find("{")
+    fin = texto.rfind("}")
+    if inicio != -1 and fin != -1 and fin > inicio:
+        texto = texto[inicio:fin + 1]
+    try:
+        return json.loads(texto)
+    except json.JSONDecodeError:
+        limpio = []
+        dentro_comilla = False
+        escape = False
+        for ch in texto:
+            if escape:
+                limpio.append(ch)
+                escape = False
+                continue
+            if ch == "\\":
+                limpio.append(ch)
+                escape = True
+                continue
+            if ch == '"':
+                dentro_comilla = not dentro_comilla
+                limpio.append(ch)
+                continue
+            if dentro_comilla and ch in ("\n", "\r"):
+                limpio.append("\\n")
+                continue
+            limpio.append(ch)
+        candidato = "".join(limpio)
+        if dentro_comilla:
+            candidato += '"'
+        if candidato.count("{") > candidato.count("}"):
+            candidato += "}" * (candidato.count("{") - candidato.count("}"))
+        if candidato.count("[") > candidato.count("]"):
+            candidato += "]" * (candidato.count("[") - candidato.count("]"))
+        return json.loads(candidato)
+
 def extraer_datos_con_ia(texto_consulta):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
@@ -154,7 +194,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
 NOTA MÉDICA:
 \"\"\"{texto_consulta}\"\"\"
 """
-    url = "https://" + "api" + ".anthropic" + ".com/v1/messages"
+    url = "https://api" + ".anthropic" + ".com/v1/messages"
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -171,7 +211,7 @@ NOTA MÉDICA:
             ]
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            resp = requests.post(url, headers=headers, json=payload, timeout=22)
             if resp.status_code == 200:
                 session.pop('last_ia_error', None)
                 print(f"IA OK usando modelo: {modelo}", flush=True)
@@ -179,9 +219,7 @@ NOTA MÉDICA:
                 raw_text = "".join(
                     block.get("text", "") for block in content_blocks if block.get("type") == "text"
                 ).strip()
-                if raw_text.startswith("```"):
-                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-                return json.loads(raw_text)
+                return _parsear_json_seguro(raw_text)
             else:
                 ultimo_error = f"HTTP {resp.status_code} ({modelo}): {resp.text[:180]}"
                 print(f"IA ERROR {ultimo_error}", flush=True)
@@ -210,7 +248,7 @@ Si un bloque no tiene fecha propia clara, usa "{fecha_por_defecto}".
 
 Reglas estrictas de fidelidad:
 1. Convierte fechas cortas `DD.MM.AA` o `DD/MM/AA` al formato `YYYY-MM-DD` (ej. `27.03.26` -> `2026-03-27`, `29.04.26` -> `2026-04-29`). Si aparece una fecha de evaluación o laboratorio distinta (ej. `26.03.26` dentro de una consulta del `27.03.26`), colócala en `lab_date` cuando corresponda.
-2. En cada consulta, guarda en `notes` el texto literal o fiel de ese bloque tal como está escrito (sin resumirlo perdiendo detalles ni reescribirlo con palabras inventadas).
+2. En cada consulta, guarda en `notes` el texto de ese bloque escapando bien las comillas dobles (`\"`) y sin saltos de línea sin escapar.
 3. Extrae en los campos numéricos/clínicos ÚNICAMENTE los valores que aparezcan explícitamente en ese bloque; si un dato no figura, pon `null`. NO inventes valores.
 4. Para valores numéricos devuelve solo el número con punto decimal (ej. 98.3), sin unidades.
    - `MM` o masa muscular -> `muscle_mass_kg`
@@ -272,7 +310,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
       "medications": "string o null",
       "indicaciones_tratamiento": "string o null",
       "proximo_control": "string o null",
-      "notes": "string con el texto fiel de esa consulta"
+      "notes": "string con el texto de esa consulta"
     }}
   ]
 }}
@@ -280,38 +318,38 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
 HISTORIAL WORD:
 \"\"\"{texto_historial}\"\"\"
 """
-    url = "https://" + "api" + ".anthropic" + ".com/v1/messages"
+    url = "https://api" + ".anthropic" + ".com/v1/messages"
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json"
     }
 
+    modelos_rapidos = ["claude-sonnet-5-5", "claude-haiku-4-5-20251001"]
     ultimo_error = ""
-    for modelo in MODELOS_CLAUDE:
+
+    for modelo in modelos_rapidos:
         payload = {
             "model": modelo,
-            "max_tokens": 4000,
+            "max_tokens": 2500,
             "messages": [
                 {"role": "user", "content": prompt}
             ]
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=45)
+            resp = requests.post(url, headers=headers, json=payload, timeout=22)
             if resp.status_code == 200:
-                session.pop('last_ia_error', None)
-                print(f"IA HISTORIAL OK usando modelo: {modelo}", flush=True)
                 content_blocks = resp.json().get("content", [])
                 raw_text = "".join(
                     block.get("text", "") for block in content_blocks if block.get("type") == "text"
                 ).strip()
-                if raw_text.startswith("```"):
-                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-                data = json.loads(raw_text)
+                data = _parsear_json_seguro(raw_text)
                 if isinstance(data, dict) and isinstance(data.get("consultas"), list):
+                    session.pop('last_ia_error', None)
+                    print(f"IA HISTORIAL OK usando modelo: {modelo}", flush=True)
                     return data["consultas"]
             else:
-                ultimo_error = f"HTTP {resp.status_code} ({modelo}): {resp.text[:180]}"
+                ultimo_error = f"HTTP {resp.status_code} ({modelo}): {resp.text[:160]}"
                 print(f"IA ERROR HISTORIAL {ultimo_error}", flush=True)
         except Exception as e:
             ultimo_error = f"Excepción ({modelo}): {e}"
