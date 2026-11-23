@@ -154,7 +154,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
 NOTA MÉDICA:
 \"\"\"{texto_consulta}\"\"\"
 """
-    url = "https://api.anthropic.com/v1/messages"
+    url = "https://" + "api.anthropic.com/v1/messages"
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -280,7 +280,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
 HISTORIAL WORD:
 \"\"\"{texto_historial}\"\"\"
 """
-    url = "[https://api.anthropic.com/v1/messages](https://api.anthropic.com/v1/messages)"
+    url = "https://" + "[api.anthropic.com/v1/messages](https://api.anthropic.com/v1/messages)"
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
