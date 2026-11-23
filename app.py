@@ -65,7 +65,7 @@ def parse_int(value):
         return 0
 # ----------------------------------------
 
-# --- EXTRACTOR CLÍNICO CON IA (CLAUDE / ANTHROPIC) ---
+# --- EXTRACTOR CLÍNICO CON IA (CLAUDE SONNET 5.5 / ANTHROPIC) ---
 def extraer_datos_con_ia(texto_consulta):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
@@ -153,37 +153,30 @@ NOTA MÉDICA:
         "content-type": "application/json"
     }
 
-    modelos_candidatos = [
-        "claude-sonnet-4-6",
-        "claude-haiku-4-5-20251001",
-        "claude-sonnet-5-5",
-        "claude-sonnet-5.5"
-    ]
-
-    for modelo in modelos_candidatos:
-        payload = {
-            "model": modelo,
-            "max_tokens": 1400,
-            "temperature": 0,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ]
-        }
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=30)
-            if resp.status_code == 200:
-                print(f"IA OK usando modelo: {modelo}", flush=True)
-                content_blocks = resp.json().get("content", [])
-                raw_text = "".join(
-                    block.get("text", "") for block in content_blocks if block.get("type") == "text"
-                ).strip()
-                if raw_text.startswith("```"):
-                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-                return json.loads(raw_text)
-            else:
-                print(f"IA ERROR (Claude {modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
-        except Exception as e:
-            print(f"IA EXCEPTION (Claude {modelo}): {e}", flush=True)
+    modelo = "claude-sonnet-5-5"
+    payload = {
+        "model": modelo,
+        "max_tokens": 1400,
+        "temperature": 0,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=30)
+        if resp.status_code == 200:
+            print(f"IA OK usando modelo: {modelo}", flush=True)
+            content_blocks = resp.json().get("content", [])
+            raw_text = "".join(
+                block.get("text", "") for block in content_blocks if block.get("type") == "text"
+            ).strip()
+            if raw_text.startswith("```"):
+                raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+            return json.loads(raw_text)
+        else:
+            print(f"IA ERROR (Claude {modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
+    except Exception as e:
+        print(f"IA EXCEPTION (Claude {modelo}): {e}", flush=True)
     return {}
 
 
@@ -280,39 +273,32 @@ HISTORIAL WORD:
         "content-type": "application/json"
     }
 
-    modelos_candidatos = [
-        "claude-sonnet-4-6",
-        "claude-haiku-4-5-20251001",
-        "claude-sonnet-5-5",
-        "claude-sonnet-5.5"
-    ]
-
-    for modelo in modelos_candidatos:
-        payload = {
-            "model": modelo,
-            "max_tokens": 4000,
-            "temperature": 0,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ]
-        }
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=45)
-            if resp.status_code == 200:
-                print(f"IA HISTORIAL OK usando modelo: {modelo}", flush=True)
-                content_blocks = resp.json().get("content", [])
-                raw_text = "".join(
-                    block.get("text", "") for block in content_blocks if block.get("type") == "text"
-                ).strip()
-                if raw_text.startswith("```"):
-                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-                data = json.loads(raw_text)
-                if isinstance(data, dict) and isinstance(data.get("consultas"), list):
-                    return data["consultas"]
-            else:
-                print(f"IA ERROR HISTORIAL (Claude {modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
-        except Exception as e:
-            print(f"IA EXCEPTION HISTORIAL (Claude {modelo}): {e}", flush=True)
+    modelo = "claude-sonnet-5-5"
+    payload = {
+        "model": modelo,
+        "max_tokens": 4000,
+        "temperature": 0,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=45)
+        if resp.status_code == 200:
+            print(f"IA HISTORIAL OK usando modelo: {modelo}", flush=True)
+            content_blocks = resp.json().get("content", [])
+            raw_text = "".join(
+                block.get("text", "") for block in content_blocks if block.get("type") == "text"
+            ).strip()
+            if raw_text.startswith("```"):
+                raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+            data = json.loads(raw_text)
+            if isinstance(data, dict) and isinstance(data.get("consultas"), list):
+                return data["consultas"]
+        else:
+            print(f"IA ERROR HISTORIAL (Claude {modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
+    except Exception as e:
+        print(f"IA EXCEPTION HISTORIAL (Claude {modelo}): {e}", flush=True)
     return []
 # -----------------------------------------
 
