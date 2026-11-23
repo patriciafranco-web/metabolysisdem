@@ -358,7 +358,7 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- PESTANA 3: PLANILLA AUTOMATICA (PESO / LABS / ESTUDIOS)    -->
+        <!-- PESTANA 3: PLANILLA AUTOMATICA (PESO / LABS Y ESTUDIOS)    -->
         <!-- ========================================================== -->
         <div class="tab-pane fade" id="planilla" role="tabpanel">
             <div class="card p-4">
@@ -366,8 +366,7 @@
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <h5 class="text-info m-0">Planilla Comparativa Automatica</h5>
                         <div class="btn-group ms-2" role="group" aria-label="Vista de planilla">
-                            <button type="button" class="btn btn-info text-dark sub-tab-btn active" id="btnVistaCompleta" onclick="setPlanillaVista('completa')">Completa</button>
-                            <button type="button" class="btn btn-outline-info sub-tab-btn" id="btnVistaAntropo" onclick="setPlanillaVista('antropo')">Peso / IMC / Cintura</button>
+                            <button type="button" class="btn btn-info text-dark sub-tab-btn active" id="btnVistaAntropo" onclick="setPlanillaVista('antropo')">Peso / IMC / Cintura</button>
                             <button type="button" class="btn btn-outline-info sub-tab-btn" id="btnVistaLabs" onclick="setPlanillaVista('labs')">Laboratorios y Estudios</button>
                         </div>
                     </div>
@@ -502,33 +501,36 @@ let recognition = null;
 let dictando = false;
 
 function setPlanillaVista(modo) {
-    const showAntropo = (modo === 'completa' || modo === 'antropo');
-    const showLabs = (modo === 'completa' || modo === 'labs');
+    const esLabs = (modo === 'labs');
 
     document.querySelectorAll('.col-antropo').forEach(el => {
-        el.style.display = showAntropo ? '' : 'none';
+        el.style.display = esLabs ? 'none' : '';
     });
     document.querySelectorAll('.col-labs').forEach(el => {
-        el.style.display = showLabs ? '' : 'none';
+        el.style.display = esLabs ? '' : 'none';
     });
 
-    const botones = {
-        completa: document.getElementById('btnVistaCompleta'),
-        antropo: document.getElementById('btnVistaAntropo'),
-        labs: document.getElementById('btnVistaLabs')
-    };
+    const btnAntropo = document.getElementById('btnVistaAntropo');
+    const btnLabs = document.getElementById('btnVistaLabs');
 
-    Object.entries(botones).forEach(([clave, btn]) => {
-        if (!btn) return;
-        if (clave === modo) {
-            btn.classList.remove('btn-outline-info');
-            btn.classList.add('btn-info', 'text-dark', 'active');
+    if (btnAntropo && btnLabs) {
+        if (esLabs) {
+            btnLabs.classList.remove('btn-outline-info');
+            btnLabs.classList.add('btn-info', 'text-dark', 'active');
+            btnAntropo.classList.remove('btn-info', 'text-dark', 'active');
+            btnAntropo.classList.add('btn-outline-info');
         } else {
-            btn.classList.remove('btn-info', 'text-dark', 'active');
-            btn.classList.add('btn-outline-info');
+            btnAntropo.classList.remove('btn-outline-info');
+            btnAntropo.classList.add('btn-info', 'text-dark', 'active');
+            btnLabs.classList.remove('btn-info', 'text-dark', 'active');
+            btnLabs.classList.add('btn-outline-info');
         }
-    });
+    }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    setPlanillaVista('antropo');
+});
 
 function toggleDictado() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
