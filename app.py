@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 import io
 import csv
 import os
+import re
 import json
 import math
 import requests
@@ -60,18 +61,20 @@ def format_text(text_val):
 
 # --- FUNCIONES BLINDADAS PARA NÚMEROS ---
 def parse_float(value):
-    if not value: return 0.0
+    if value is None or value == "":
+        return None
     try:
         return float(str(value).replace(',', '.').strip())
     except:
-        return 0.0
+        return None
 
 def parse_int(value):
-    if not value: return 0
+    if value is None or value == "":
+        return None
     try:
         return int(float(str(value).replace(',', '.').strip()))
     except:
-        return 0
+        return None
 # ----------------------------------------
 
 # --- EXTRACTOR CLÍNICO CON IA (CLAUDE SONNET 5.5 + FALLBACK / ANTHROPIC) ---
@@ -128,6 +131,7 @@ Reglas de interpretación estricta:
 3. Abreviaturas comunes en consultas/evaluaciones:
    - `MM` o masa muscular -> `muscle_mass_kg`
    - `%grasa` o grasa corporal % -> `body_fat_pct`
+   - `GV` o grasa visceral -> `visceral_fat`
    - `PA` o presión arterial -> `pa`
    - `FC` -> `fc`
    - `Tirze` / tirzepatida / fármacos y dosis -> `medications`
@@ -205,7 +209,7 @@ NOTA MÉDICA:
             ]
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=22)
+            resp = requests.post(url, headers=headers, json=payload, timeout=20)
             if resp.status_code == 200:
                 session.pop('last_ia_error', None)
                 print(f"IA OK usando modelo: {modelo}", flush=True)
@@ -227,102 +231,45 @@ NOTA MÉDICA:
     return {}
 
 
-def _llamar_ia_bloque_historial(bloque_texto, fecha_por_defecto, api_key, modelo):
-    prompt = f"""
-Eres un asistente médico experto en estructurar historiales clínicos en español (Paraguay/Latinoamérica).
-Analiza este texto clínico (de Word o PDF) y separa CADA consulta, control o evaluación según su FECHA PROPIA en formato `YYYY-MM-DD`.
-Solo si un bloque NO tiene ninguna fecha explícita propia, usa "{fecha_por_defecto}".
+def _normalizar_fecha_corta(match):
+    d, m, y = match.group(1), match.group(2), match.group(3)
+    if len(y) == 2:
+        y = "20" + y
+    try:
+        dt = datetime(int(y), int(m), int(d))
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
 
-Reglas OBLIGATORIAS de fechas y ubicación de resultados:
-1. Convierte cualquier fecha corta o de documento (`DD.MM.AA`, `DD/MM/AA`, `DD-MM-AA`, `DD/MM/AAAA`) a `YYYY-MM-DD` (ej. `27.03.26` -> `2026-03-27`, `28.04.26` -> `2026-04-28`, `29.04.26` -> `2026-04-29`).
-2. CADA consulta o bloque con fecha distinta debe ir como un elemento SEPARADO en `"consultas"` con su propio `"date"` (`YYYY-MM-DD`). NUNCA mezcles ni dejes todos con la fecha de hoy si el texto trae fechas propias.
-3. Si dentro de una consulta hay una fecha distinta de laboratorio o evaluación nutricional (ej. `Eval nutr Inbody 26.03.26` o `Lab 16/01/2026`), pon esa fecha en `"lab_date"` (`YYYY-MM-DD`) y deja `"date"` con la fecha de la consulta.
-4. Coloca en cada consulta ÚNICAMENTE los resultados de ese bloque (si no están en ese bloque, pon `null`; NO copies datos de otra consulta ni inventes valores):
-   - Peso de la consulta/día -> `"weight"` (si hay evaluación previa y peso del día, usa el del día en `"weight"` y conserva el detalle en `"notes"`).
-   - `MM` o masa muscular -> `"muscle_mass_kg"`, `%grasa` -> `"body_fat_pct"`, grasa en kg -> `"body_fat_kg"`, grasa visceral / `GV` -> `"visceral_fat"`, cintura -> `"waist"`, `PA` -> `"pa"`, `FC` -> `"fc"`.
-   - Glicemia / `Glic` -> `"glucose"`, Insulina -> `"insulin"`, `HbA1c` -> `"hba1c"`, `triglycerides`, `cholesterol_tot`, `hdl`, `ldl`, `vldl`, `tsh`, `t4`, `t3`, `vit_d`, `vit_b12`, `platelets`, etc.
-   - Fármacos y dosis -> `"medications"`, plan/indicaciones -> `"indicaciones_tratamiento"`, próximo control -> `"proximo_control"`.
-5. En `"notes"`, pon el texto de ese bloque sin saltos de línea literales (usa `\\n`) y escapando comillas dobles (`\\"`).
 
-Devuelve EXCLUSIVAMENTE un objeto JSON válido:
-{{
-  "consultas": [
-    {{
-      "date": "YYYY-MM-DD",
-      "lab_date": "YYYY-MM-DD o null",
-      "pa": "string o null",
-      "fc": "int o null",
-      "height": "float o null",
-      "weight": "float o null",
-      "waist": "float o null",
-      "body_fat_pct": "float o null",
-      "body_fat_kg": "float o null",
-      "visceral_fat": "float o null",
-      "muscle_mass_kg": "float o null",
-      "basal_metabolism": "float o null",
-      "glucose": "float o null",
-      "insulin": "float o null",
-      "hba1c": "float o null",
-      "triglycerides": "float o null",
-      "cholesterol_tot": "float o null",
-      "hdl": "float o null",
-      "ldl": "float o null",
-      "vldl": "float o null",
-      "uric_acid": "float o null",
-      "got": "float o null",
-      "gpt": "float o null",
-      "fa": "float o null",
-      "bili_tot": "float o null",
-      "bili_dir": "float o null",
-      "bili_ind": "float o null",
-      "urea": "float o null",
-      "creatinine": "float o null",
-      "tsh": "float o null",
-      "t4": "float o null",
-      "t3": "float o null",
-      "anti_tpo": "float o null",
-      "vit_d": "float o null",
-      "vit_b12": "float o null",
-      "calcium": "float o null",
-      "magnesium": "float o null",
-      "phosphorus": "float o null",
-      "chlorine": "float o null",
-      "platelets": "float o null",
-      "otros_laboratorios": "string o null",
-      "ecografia_abdominal": "string o null",
-      "ecografia_tiroidea": "string o null",
-      "otros_estudios": "string o null",
-      "medications": "string o null",
-      "indicaciones_tratamiento": "string o null",
-      "proximo_control": "string o null",
-      "notes": "string"
-    }}
-  ]
-}}
+def _separar_bloques_por_fecha(texto, fecha_por_defecto):
+    patron_fecha = re.compile(r'\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b')
+    lineas = [ln.strip() for ln in (texto or "").splitlines() if ln.strip()]
+    if not lineas:
+        return []
 
-TEXTO:
-\"\"\"{bloque_texto}\"\"\"
-"""
-    url = "https://api" + ".anthropic" + ".com/v1/messages"
-    headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
-    }
-    payload = {
-        "model": modelo,
-        "max_tokens": 2500,
-        "messages": [{"role": "user", "content": prompt}]
-    }
-    resp = requests.post(url, headers=headers, json=payload, timeout=20)
-    if resp.status_code != 200:
-        raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:140]}")
-    blocks = resp.json().get("content", [])
-    raw_text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text").strip()
-    data = _limpiar_y_cargar_json(raw_text)
-    if isinstance(data, dict) and isinstance(data.get("consultas"), list):
-        return data["consultas"]
-    return []
+    bloques = []
+    fecha_actual = None
+    lineas_actuales = []
+
+    for ln in lineas:
+        es_encabezado_fecha = bool(re.match(r'^(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b', ln))
+        m = patron_fecha.search(ln)
+        if es_encabezado_fecha and m:
+            if lineas_actuales:
+                bloques.append((fecha_actual or fecha_por_defecto, "\n".join(lineas_actuales)))
+                lineas_actuales = []
+            fecha_actual = _normalizar_fecha_corta(m)
+            lineas_actuales.append(ln)
+        else:
+            if fecha_actual is None and m and not ln.lower().startswith(("eval", "lab")):
+                fecha_actual = _normalizar_fecha_corta(m)
+            lineas_actuales.append(ln)
+
+    if lineas_actuales:
+        bloques.append((fecha_actual or fecha_por_defecto, "\n".join(lineas_actuales)))
+
+    return bloques
 
 
 def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
@@ -335,48 +282,19 @@ def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
     if not texto:
         return []
 
-    fragmentos = []
-    if len(texto) <= 2800:
-        fragmentos.append(texto)
-    else:
-        actual = []
-        len_actual = 0
-        for linea in texto.split("\n"):
-            if len_actual + len(linea) + 1 > 2800 and actual:
-                fragmentos.append("\n".join(actual))
-                actual = [linea]
-                len_actual = len(linea)
-            else:
-                actual.append(linea)
-                len_actual += len(linea) + 1
-        if actual:
-            fragmentos.append("\n".join(actual))
+    bloques = _separar_bloques_por_fecha(texto, fecha_por_defecto)
+    if not bloques:
+        bloques = [(fecha_por_defecto, texto)]
 
-    fragmentos = fragmentos[:3]
-    resultado_total = []
-    modelo_activo = "claude-sonnet-5-5"
+    consultas_resultado = []
+    for fecha_bloque, texto_bloque in bloques[:6]:
+        datos_ia = extraer_datos_con_ia(texto_bloque)
+        item = dict(datos_ia) if isinstance(datos_ia, dict) else {}
+        item["date"] = fecha_bloque
+        item["notes"] = texto_bloque
+        consultas_resultado.append(item)
 
-    for frag in fragmentos:
-        try:
-            consultas_frag = _llamar_ia_bloque_historial(frag, fecha_por_defecto, api_key, modelo_activo)
-            if consultas_frag:
-                resultado_total.extend(consultas_frag)
-        except Exception as e:
-            print(f"IA HISTORIAL AVISO ({modelo_activo}): {e}", flush=True)
-            try:
-                consultas_frag = _llamar_ia_bloque_historial(frag, fecha_por_defecto, api_key, "claude-haiku-4-5-20251001")
-                if consultas_frag:
-                    modelo_activo = "claude-haiku-4-5-20251001"
-                    resultado_total.extend(consultas_frag)
-                else:
-                    session['last_ia_error'] = str(e)
-            except Exception as e2:
-                session['last_ia_error'] = str(e2)
-                print(f"IA HISTORIAL ERROR FALLBACK: {e2}", flush=True)
-
-    if resultado_total:
-        session.pop('last_ia_error', None)
-    return resultado_total
+    return consultas_resultado
 # -----------------------------------------
 
 db = SQLAlchemy(app)
@@ -912,19 +830,7 @@ def patient_detail(id):
         if nota_libre:
             datos = extraer_datos_con_ia(nota_libre)
 
-            def get_num(key):
-                val = datos.get(key)
-                if val is None or val == "":
-                    return None
-                return parse_float(val)
-
-            def get_int_val(key):
-                val = datos.get(key)
-                if val is None or val == "":
-                    return None
-                return parse_int(val)
-
-            altura_final = get_num('height')
+            altura_final = parse_float(datos.get('height'))
             if not altura_final:
                 altura_final = next((r.height for r in all_records if r.height), None)
 
@@ -933,43 +839,43 @@ def patient_detail(id):
                 date=fecha,
                 lab_date=datos.get('lab_date'),
                 pa=datos.get('pa'),
-                fc=get_int_val('fc'),
+                fc=parse_int(datos.get('fc')),
                 height=altura_final,
-                weight=get_num('weight'),
-                waist=get_num('waist'),
-                body_fat_pct=get_num('body_fat_pct'),
-                body_fat_kg=get_num('body_fat_kg'),
-                visceral_fat=get_num('visceral_fat'),
-                muscle_mass_kg=get_num('muscle_mass_kg'),
-                basal_metabolism=get_num('basal_metabolism'),
-                glucose=get_num('glucose'),
-                insulin=get_num('insulin'),
-                hba1c=get_num('hba1c'),
-                triglycerides=get_num('triglycerides'),
-                cholesterol_tot=get_num('cholesterol_tot'),
-                hdl=get_num('hdl'),
-                ldl=get_num('ldl'),
-                vldl=get_num('vldl'),
-                uric_acid=get_num('uric_acid'),
-                got=get_num('got'),
-                gpt=get_num('gpt'),
-                fa=get_num('fa'),
-                bili_tot=get_num('bili_tot'),
-                bili_dir=get_num('bili_dir'),
-                bili_ind=get_num('bili_ind'),
-                urea=get_num('urea'),
-                creatinine=get_num('creatinine'),
-                tsh=get_num('tsh'),
-                t4=get_num('t4'),
-                t3=get_num('t3'),
-                anti_tpo=get_num('anti_tpo'),
-                vit_d=get_num('vit_d'),
-                vit_b12=get_num('vit_b12'),
-                calcium=get_num('calcium'),
-                magnesium=get_num('magnesium'),
-                phosphorus=get_num('phosphorus'),
-                chlorine=get_num('chlorine'),
-                platelets=get_num('platelets'),
+                weight=parse_float(datos.get('weight')),
+                waist=parse_float(datos.get('waist')),
+                body_fat_pct=parse_float(datos.get('body_fat_pct')),
+                body_fat_kg=parse_float(datos.get('body_fat_kg')),
+                visceral_fat=parse_float(datos.get('visceral_fat')),
+                muscle_mass_kg=parse_float(datos.get('muscle_mass_kg')),
+                basal_metabolism=parse_float(datos.get('basal_metabolism')),
+                glucose=parse_float(datos.get('glucose')),
+                insulin=parse_float(datos.get('insulin')),
+                hba1c=parse_float(datos.get('hba1c')),
+                triglycerides=parse_float(datos.get('triglycerides')),
+                cholesterol_tot=parse_float(datos.get('cholesterol_tot')),
+                hdl=parse_float(datos.get('hdl')),
+                ldl=parse_float(datos.get('ldl')),
+                vldl=parse_float(datos.get('vldl')),
+                uric_acid=parse_float(datos.get('uric_acid')),
+                got=parse_float(datos.get('got')),
+                gpt=parse_float(datos.get('gpt')),
+                fa=parse_float(datos.get('fa')),
+                bili_tot=parse_float(datos.get('bili_tot')),
+                bili_dir=parse_float(datos.get('bili_dir')),
+                bili_ind=parse_float(datos.get('bili_ind')),
+                urea=parse_float(datos.get('urea')),
+                creatinine=parse_float(datos.get('creatinine')),
+                tsh=parse_float(datos.get('tsh')),
+                t4=parse_float(datos.get('t4')),
+                t3=parse_float(datos.get('t3')),
+                anti_tpo=parse_float(datos.get('anti_tpo')),
+                vit_d=parse_float(datos.get('vit_d')),
+                vit_b12=parse_float(datos.get('vit_b12')),
+                calcium=parse_float(datos.get('calcium')),
+                magnesium=parse_float(datos.get('magnesium')),
+                phosphorus=parse_float(datos.get('phosphorus')),
+                chlorine=parse_float(datos.get('chlorine')),
+                platelets=parse_float(datos.get('platelets')),
                 otros_laboratorios=datos.get('otros_laboratorios'),
                 ecografia_abdominal=datos.get('ecografia_abdominal'),
                 ecografia_tiroidea=datos.get('ecografia_tiroidea'),
@@ -1112,18 +1018,6 @@ def import_docx(patient_id):
                 today_str = date.today().strftime('%Y-%m-%d')
                 consultas = extraer_historial_por_fecha_con_ia(final_text, today_str)
 
-                def get_num(d, key):
-                    val = d.get(key)
-                    if val is None or val == "":
-                        return None
-                    return parse_float(val)
-
-                def get_int_val(d, key):
-                    val = d.get(key)
-                    if val is None or val == "":
-                        return None
-                    return parse_int(val)
-
                 existentes = sorted(patient.records, key=lambda x: (x.date or '', x.id), reverse=True)
                 altura_base = next((r.height for r in existentes if r.height), None)
 
@@ -1132,7 +1026,7 @@ def import_docx(patient_id):
                     creados = 0
                     for item in consultas_ordenadas:
                         fecha_item = str(item.get('date') or today_str).strip() or today_str
-                        altura_item = get_num(item, 'height') or altura_base
+                        altura_item = parse_float(item.get('height')) or altura_base
                         if altura_item:
                             altura_base = altura_item
 
@@ -1141,43 +1035,43 @@ def import_docx(patient_id):
                             date=fecha_item,
                             lab_date=item.get('lab_date'),
                             pa=item.get('pa'),
-                            fc=get_int_val(item, 'fc'),
+                            fc=parse_int(item.get('fc')),
                             height=altura_item,
-                            weight=get_num(item, 'weight'),
-                            waist=get_num(item, 'waist'),
-                            body_fat_pct=get_num(item, 'body_fat_pct'),
-                            body_fat_kg=get_num(item, 'body_fat_kg'),
-                            visceral_fat=get_num(item, 'visceral_fat'),
-                            muscle_mass_kg=get_num(item, 'muscle_mass_kg'),
-                            basal_metabolism=get_num(item, 'basal_metabolism'),
-                            glucose=get_num(item, 'glucose'),
-                            insulin=get_num(item, 'insulin'),
-                            hba1c=get_num(item, 'hba1c'),
-                            triglycerides=get_num(item, 'triglycerides'),
-                            cholesterol_tot=get_num(item, 'cholesterol_tot'),
-                            hdl=get_num(item, 'hdl'),
-                            ldl=get_num(item, 'ldl'),
-                            vldl=get_num(item, 'vldl'),
-                            uric_acid=get_num(item, 'uric_acid'),
-                            got=get_num(item, 'got'),
-                            gpt=get_num(item, 'gpt'),
-                            fa=get_num(item, 'fa'),
-                            bili_tot=get_num(item, 'bili_tot'),
-                            bili_dir=get_num(item, 'bili_dir'),
-                            bili_ind=get_num(item, 'bili_ind'),
-                            urea=get_num(item, 'urea'),
-                            creatinine=get_num(item, 'creatinine'),
-                            tsh=get_num(item, 'tsh'),
-                            t4=get_num(item, 't4'),
-                            t3=get_num(item, 't3'),
-                            anti_tpo=get_num(item, 'anti_tpo'),
-                            vit_d=get_num(item, 'vit_d'),
-                            vit_b12=get_num(item, 'vit_b12'),
-                            calcium=get_num(item, 'calcium'),
-                            magnesium=get_num(item, 'magnesium'),
-                            phosphorus=get_num(item, 'phosphorus'),
-                            chlorine=get_num(item, 'chlorine'),
-                            platelets=get_num(item, 'platelets'),
+                            weight=parse_float(item.get('weight')),
+                            waist=parse_float(item.get('waist')),
+                            body_fat_pct=parse_float(item.get('body_fat_pct')),
+                            body_fat_kg=parse_float(item.get('body_fat_kg')),
+                            visceral_fat=parse_float(item.get('visceral_fat')),
+                            muscle_mass_kg=parse_float(item.get('muscle_mass_kg')),
+                            basal_metabolism=parse_float(item.get('basal_metabolism')),
+                            glucose=parse_float(item.get('glucose')),
+                            insulin=parse_float(item.get('insulin')),
+                            hba1c=parse_float(item.get('hba1c')),
+                            triglycerides=parse_float(item.get('triglycerides')),
+                            cholesterol_tot=parse_float(item.get('cholesterol_tot')),
+                            hdl=parse_float(item.get('hdl')),
+                            ldl=parse_float(item.get('ldl')),
+                            vldl=parse_float(item.get('vldl')),
+                            uric_acid=parse_float(item.get('uric_acid')),
+                            got=parse_float(item.get('got')),
+                            gpt=parse_float(item.get('gpt')),
+                            fa=parse_float(item.get('fa')),
+                            bili_tot=parse_float(item.get('bili_tot')),
+                            bili_dir=parse_float(item.get('bili_dir')),
+                            bili_ind=parse_float(item.get('bili_ind')),
+                            urea=parse_float(item.get('urea')),
+                            creatinine=parse_float(item.get('creatinine')),
+                            tsh=parse_float(item.get('tsh')),
+                            t4=parse_float(item.get('t4')),
+                            t3=parse_float(item.get('t3')),
+                            anti_tpo=parse_float(item.get('anti_tpo')),
+                            vit_d=parse_float(item.get('vit_d')),
+                            vit_b12=parse_float(item.get('vit_b12')),
+                            calcium=parse_float(item.get('calcium')),
+                            magnesium=parse_float(item.get('magnesium')),
+                            phosphorus=parse_float(item.get('phosphorus')),
+                            chlorine=parse_float(item.get('chlorine')),
+                            platelets=parse_float(item.get('platelets')),
                             otros_laboratorios=item.get('otros_laboratorios'),
                             ecografia_abdominal=item.get('ecografia_abdominal'),
                             ecografia_tiroidea=item.get('ecografia_tiroidea'),
@@ -1192,7 +1086,7 @@ def import_docx(patient_id):
 
                     db.session.commit()
                     recalculate_deltas(patient.id)
-                    flash(f"✅ Historial procesado con IA: se cargaron {creados} consulta(s) por fecha en la planilla.", "success")
+                    flash(f"✅ Historial procesado: se cargaron {creados} consulta(s) por fecha en la planilla.", "success")
                 else:
                     record = MedicalRecord(
                         patient_id=patient.id,
