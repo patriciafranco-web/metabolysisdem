@@ -65,10 +65,18 @@ def parse_int(value):
         return 0
 # ----------------------------------------
 
-# --- EXTRACTOR CLÍNICO CON IA (CLAUDE SONNET 5.5 / ANTHROPIC) ---
+# --- EXTRACTOR CLÍNICO CON IA (CLAUDE SONNET 5.5 + FALLBACK / ANTHROPIC) ---
+MODELOS_CLAUDE = [
+    "claude-sonnet-5-5",
+    "claude-sonnet-5.5",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5-20251001"
+]
+
 def extraer_datos_con_ia(texto_consulta):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
+        session['last_ia_error'] = "Falta la variable ANTHROPIC_API_KEY en Render."
         print("IA ERROR: No se encontró ANTHROPIC_API_KEY en Render.", flush=True)
         return {}
     if not texto_consulta or not texto_consulta.strip():
@@ -153,36 +161,43 @@ NOTA MÉDICA:
         "content-type": "application/json"
     }
 
-    modelo = "claude-sonnet-5-5"
-    payload = {
-        "model": modelo,
-        "max_tokens": 1400,
-        "temperature": 0,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
-    }
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=30)
-        if resp.status_code == 200:
-            print(f"IA OK usando modelo: {modelo}", flush=True)
-            content_blocks = resp.json().get("content", [])
-            raw_text = "".join(
-                block.get("text", "") for block in content_blocks if block.get("type") == "text"
-            ).strip()
-            if raw_text.startswith("```"):
-                raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-            return json.loads(raw_text)
-        else:
-            print(f"IA ERROR (Claude {modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
-    except Exception as e:
-        print(f"IA EXCEPTION (Claude {modelo}): {e}", flush=True)
+    ultimo_error = ""
+    for modelo in MODELOS_CLAUDE:
+        payload = {
+            "model": modelo,
+            "max_tokens": 1400,
+            "temperature": 0,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            if resp.status_code == 200:
+                session.pop('last_ia_error', None)
+                print(f"IA OK usando modelo: {modelo}", flush=True)
+                content_blocks = resp.json().get("content", [])
+                raw_text = "".join(
+                    block.get("text", "") for block in content_blocks if block.get("type") == "text"
+                ).strip()
+                if raw_text.startswith("```"):
+                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                return json.loads(raw_text)
+            else:
+                ultimo_error = f"HTTP {resp.status_code} ({modelo}): {resp.text[:180]}"
+                print(f"IA ERROR {ultimo_error}", flush=True)
+        except Exception as e:
+            ultimo_error = f"Excepción ({modelo}): {e}"
+            print(f"IA EXCEPTION {ultimo_error}", flush=True)
+
+    session['last_ia_error'] = ultimo_error
     return {}
 
 
 def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
+        session['last_ia_error'] = "Falta la variable ANTHROPIC_API_KEY en Render."
         print("IA ERROR: No se encontró ANTHROPIC_API_KEY en Render.", flush=True)
         return []
     if not texto_historial or not texto_historial.strip():
@@ -273,32 +288,38 @@ HISTORIAL WORD:
         "content-type": "application/json"
     }
 
-    modelo = "claude-sonnet-5-5"
-    payload = {
-        "model": modelo,
-        "max_tokens": 4000,
-        "temperature": 0,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
-    }
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=45)
-        if resp.status_code == 200:
-            print(f"IA HISTORIAL OK usando modelo: {modelo}", flush=True)
-            content_blocks = resp.json().get("content", [])
-            raw_text = "".join(
-                block.get("text", "") for block in content_blocks if block.get("type") == "text"
-            ).strip()
-            if raw_text.startswith("```"):
-                raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-            data = json.loads(raw_text)
-            if isinstance(data, dict) and isinstance(data.get("consultas"), list):
-                return data["consultas"]
-        else:
-            print(f"IA ERROR HISTORIAL (Claude {modelo}) HTTP {resp.status_code}: {resp.text[:300]}", flush=True)
-    except Exception as e:
-        print(f"IA EXCEPTION HISTORIAL (Claude {modelo}): {e}", flush=True)
+    ultimo_error = ""
+    for modelo in MODELOS_CLAUDE:
+        payload = {
+            "model": modelo,
+            "max_tokens": 4000,
+            "temperature": 0,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=45)
+            if resp.status_code == 200:
+                session.pop('last_ia_error', None)
+                print(f"IA HISTORIAL OK usando modelo: {modelo}", flush=True)
+                content_blocks = resp.json().get("content", [])
+                raw_text = "".join(
+                    block.get("text", "") for block in content_blocks if block.get("type") == "text"
+                ).strip()
+                if raw_text.startswith("```"):
+                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                data = json.loads(raw_text)
+                if isinstance(data, dict) and isinstance(data.get("consultas"), list):
+                    return data["consultas"]
+            else:
+                ultimo_error = f"HTTP {resp.status_code} ({modelo}): {resp.text[:180]}"
+                print(f"IA ERROR HISTORIAL {ultimo_error}", flush=True)
+        except Exception as e:
+            ultimo_error = f"Excepción ({modelo}): {e}"
+            print(f"IA EXCEPTION HISTORIAL {ultimo_error}", flush=True)
+
+    session['last_ia_error'] = ultimo_error
     return []
 # -----------------------------------------
 
@@ -906,8 +927,11 @@ def patient_detail(id):
             db.session.commit()
             recalculate_deltas(patient.id)
 
+            err_ia = session.pop('last_ia_error', '')
             if datos:
                 flash("✅ Consulta guardada y datos clasificados automáticamente con IA en la planilla.", "success")
+            elif err_ia:
+                flash(f"⚠️ Consulta guardada, pero la IA no pudo clasificar los datos ({err_ia}).", "warning")
             else:
                 flash("✅ Consulta guardada (sin clasificación IA: verifique ANTHROPIC_API_KEY si desea extracción automática).", "info")
 
@@ -1106,7 +1130,11 @@ def import_docx(patient_id):
                     )
                     db.session.add(record)
                     db.session.commit()
-                    flash("✅ ¡Historial importado exitosamente!", "success")
+                    err_ia = session.pop('last_ia_error', '')
+                    if err_ia:
+                        flash(f"⚠️ Se guardó el texto, pero la IA no pudo clasificar los datos ({err_ia}).", "warning")
+                    else:
+                        flash("✅ ¡Historial importado exitosamente!", "success")
 
                 return redirect(url_for('patient_detail', id=patient.id))
 
