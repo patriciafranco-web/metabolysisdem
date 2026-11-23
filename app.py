@@ -73,8 +73,10 @@ MODELOS_CLAUDE = [
     "claude-haiku-4-5-20251001"
 ]
 
-def _parsear_json_seguro(raw_text):
+def _limpiar_y_cargar_json(raw_text):
     texto = (raw_text or "").strip()
+    if not texto:
+        return None
     if texto.startswith("```"):
         texto = texto.replace("```json", "").replace("```", "").strip()
     inicio = texto.find("{")
@@ -83,35 +85,18 @@ def _parsear_json_seguro(raw_text):
         texto = texto[inicio:fin + 1]
     try:
         return json.loads(texto)
-    except json.JSONDecodeError:
-        limpio = []
-        dentro_comilla = False
-        escape = False
-        for ch in texto:
-            if escape:
-                limpio.append(ch)
-                escape = False
-                continue
-            if ch == "\\":
-                limpio.append(ch)
-                escape = True
-                continue
-            if ch == '"':
-                dentro_comilla = not dentro_comilla
-                limpio.append(ch)
-                continue
-            if dentro_comilla and ch in ("\n", "\r"):
-                limpio.append("\\n")
-                continue
-            limpio.append(ch)
-        candidato = "".join(limpio)
-        if dentro_comilla:
-            candidato += '"'
-        if candidato.count("{") > candidato.count("}"):
-            candidato += "}" * (candidato.count("{") - candidato.count("}"))
-        if candidato.count("[") > candidato.count("]"):
-            candidato += "]" * (candidato.count("[") - candidato.count("]"))
-        return json.loads(candidato)
+    except Exception:
+        arreglado = texto.replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "\\n")
+        if arreglado.count('"') % 2 != 0:
+            arreglado += '"'
+        if arreglado.count("{") > arreglado.count("}"):
+            arreglado += "}" * (arreglado.count("{") - arreglado.count("}"))
+        if arreglado.count("[") > arreglado.count("]"):
+            arreglado += "]" * (arreglado.count("[") - arreglado.count("]"))
+        try:
+            return json.loads(arreglado)
+        except Exception:
+            return None
 
 def extraer_datos_con_ia(texto_consulta):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
@@ -219,7 +204,9 @@ NOTA MÉDICA:
                 raw_text = "".join(
                     block.get("text", "") for block in content_blocks if block.get("type") == "text"
                 ).strip()
-                return _parsear_json_seguro(raw_text)
+                parsed = _limpiar_y_cargar_json(raw_text)
+                if isinstance(parsed, dict):
+                    return parsed
             else:
                 ultimo_error = f"HTTP {resp.status_code} ({modelo}): {resp.text[:180]}"
                 print(f"IA ERROR {ultimo_error}", flush=True)
@@ -231,45 +218,29 @@ NOTA MÉDICA:
     return {}
 
 
-def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
-    if not api_key:
-        session['last_ia_error'] = "Falta la variable ANTHROPIC_API_KEY en Render."
-        print("IA ERROR: No se encontró ANTHROPIC_API_KEY en Render.", flush=True)
-        return []
-    if not texto_historial or not texto_historial.strip():
-        return []
-
+def _llamar_ia_bloque_historial(bloque_texto, fecha_por_defecto, api_key, modelo):
     prompt = f"""
-Eres un asistente médico experto en extracción fiel de historiales clínicos en español (Paraguay/Latinoamérica).
-Lee el historial clínico completo tal como está escrito (puede contener una o varias consultas o controles en distintas fechas).
-Separa cada consulta o bloque clínico según su fecha explícita en formato `YYYY-MM-DD`.
+Eres un asistente médico experto en extracción clínica fiel en español.
+Lee este fragmento de historial clínico y separa cada consulta o control según su fecha explícita en formato `YYYY-MM-DD`.
 Si un bloque no tiene fecha propia clara, usa "{fecha_por_defecto}".
 
-Reglas estrictas de fidelidad:
-1. Convierte fechas cortas `DD.MM.AA` o `DD/MM/AA` al formato `YYYY-MM-DD` (ej. `27.03.26` -> `2026-03-27`, `29.04.26` -> `2026-04-29`). Si aparece una fecha de evaluación o laboratorio distinta (ej. `26.03.26` dentro de una consulta del `27.03.26`), colócala en `lab_date` cuando corresponda.
-2. En cada consulta, guarda en `notes` el texto de ese bloque escapando bien las comillas dobles (`\"`) y sin saltos de línea sin escapar.
-3. Extrae en los campos numéricos/clínicos ÚNICAMENTE los valores que aparezcan explícitamente en ese bloque; si un dato no figura, pon `null`. NO inventes valores.
-4. Para valores numéricos devuelve solo el número con punto decimal (ej. 98.3), sin unidades.
-   - `MM` o masa muscular -> `muscle_mass_kg`
-   - `%grasa` -> `body_fat_pct`
-   - Si hay peso de evaluación previa y peso del día (ej. "Eval nutr Inbody 26.03.26: peso 97.4 kg ... Peso hoy 27.03.26: 98.3"), usa el peso de la consulta/día en `weight` y conserva todo en `notes`.
-   - Medicación (ej. `Tirze 5mg`, `candesartan 8mg`, etc.) -> `medications`
-   - Plan / indicaciones -> `indicaciones_tratamiento`
-   - Próximo control (ej. `Control en 1 mes`) -> `proximo_control`
-   - Plaquetas: si vienen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo igual.
+Reglas:
+1. Convierte fechas cortas `DD.MM.AA` o `DD/MM/AA` a `YYYY-MM-DD` (ej. `27.03.26` -> `2026-03-27`). Si hay fecha distinta de laboratorio/evaluación (ej. `26.03.26`), ponla en `lab_date`.
+2. En `notes`, coloca el texto de ese bloque sin saltos de línea literales (usa espacio o `\\n`) y escapando comillas dobles (`\\"`).
+3. Extrae SOLO los valores explícitos en ese bloque; pon `null` si no figuran. No inventes datos.
+4. Números con punto decimal y sin unidades (`MM` -> `muscle_mass_kg`, `%grasa` -> `body_fat_pct`, fármacos -> `medications`, plan/indicaciones -> `indicaciones_tratamiento`, control -> `proximo_control`).
 
-Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques markdown) con esta estructura:
+Responde ÚNICAMENTE con JSON válido:
 {{
   "consultas": [
     {{
-      "date": "string YYYY-MM-DD",
-      "lab_date": "string YYYY-MM-DD o null",
+      "date": "YYYY-MM-DD",
+      "lab_date": "YYYY-MM-DD o null",
       "pa": "string o null",
       "fc": "int o null",
-      "height": "float en cm o null",
-      "weight": "float en kg o null",
-      "waist": "float en cm o null",
+      "height": "float o null",
+      "weight": "float o null",
+      "waist": "float o null",
       "body_fat_pct": "float o null",
       "body_fat_kg": "float o null",
       "visceral_fat": "float o null",
@@ -310,13 +281,13 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
       "medications": "string o null",
       "indicaciones_tratamiento": "string o null",
       "proximo_control": "string o null",
-      "notes": "string con el texto de esa consulta"
+      "notes": "string"
     }}
   ]
 }}
 
-HISTORIAL WORD:
-\"\"\"{texto_historial}\"\"\"
+TEXTO:
+\"\"\"{bloque_texto}\"\"\"
 """
     url = "https://api" + ".anthropic" + ".com/v1/messages"
     headers = {
@@ -324,39 +295,74 @@ HISTORIAL WORD:
         "anthropic-version": "2023-06-01",
         "content-type": "application/json"
     }
-
-    modelos_rapidos = ["claude-sonnet-5-5", "claude-haiku-4-5-20251001"]
-    ultimo_error = ""
-
-    for modelo in modelos_rapidos:
-        payload = {
-            "model": modelo,
-            "max_tokens": 2500,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ]
-        }
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=22)
-            if resp.status_code == 200:
-                content_blocks = resp.json().get("content", [])
-                raw_text = "".join(
-                    block.get("text", "") for block in content_blocks if block.get("type") == "text"
-                ).strip()
-                data = _parsear_json_seguro(raw_text)
-                if isinstance(data, dict) and isinstance(data.get("consultas"), list):
-                    session.pop('last_ia_error', None)
-                    print(f"IA HISTORIAL OK usando modelo: {modelo}", flush=True)
-                    return data["consultas"]
-            else:
-                ultimo_error = f"HTTP {resp.status_code} ({modelo}): {resp.text[:160]}"
-                print(f"IA ERROR HISTORIAL {ultimo_error}", flush=True)
-        except Exception as e:
-            ultimo_error = f"Excepción ({modelo}): {e}"
-            print(f"IA EXCEPTION HISTORIAL {ultimo_error}", flush=True)
-
-    session['last_ia_error'] = ultimo_error
+    payload = {
+        "model": modelo,
+        "max_tokens": 2000,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    resp = requests.post(url, headers=headers, json=payload, timeout=18)
+    if resp.status_code != 200:
+        raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:140]}")
+    blocks = resp.json().get("content", [])
+    raw_text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text").strip()
+    data = _limpiar_y_cargar_json(raw_text)
+    if isinstance(data, dict) and isinstance(data.get("consultas"), list):
+        return data["consultas"]
     return []
+
+
+def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+    if not api_key:
+        session['last_ia_error'] = "Falta la variable ANTHROPIC_API_KEY en Render."
+        print("IA ERROR: No se encontró ANTHROPIC_API_KEY en Render.", flush=True)
+        return []
+    texto = (texto_historial or "").strip()
+    if not texto:
+        return []
+
+    fragmentos = []
+    if len(texto) <= 2800:
+        fragmentos.append(texto)
+    else:
+        actual = []
+        len_actual = 0
+        for linea in texto.split("\n"):
+            if len_actual + len(linea) + 1 > 2800 and actual:
+                fragmentos.append("\n".join(actual))
+                actual = [linea]
+                len_actual = len(linea)
+            else:
+                actual.append(linea)
+                len_actual += len(linea) + 1
+        if actual:
+            fragmentos.append("\n".join(actual))
+
+    fragmentos = fragmentos[:3]
+    resultado_total = []
+    modelo_activo = "claude-sonnet-5-5"
+
+    for frag in fragmentos:
+        try:
+            consultas_frag = _llamar_ia_bloque_historial(frag, fecha_por_defecto, api_key, modelo_activo)
+            if consultas_frag:
+                resultado_total.extend(consultas_frag)
+        except Exception as e:
+            print(f"IA HISTORIAL AVISO ({modelo_activo}): {e}", flush=True)
+            try:
+                consultas_frag = _llamar_ia_bloque_historial(frag, fecha_por_defecto, api_key, "claude-haiku-4-5-20251001")
+                if consultas_frag:
+                    modelo_activo = "claude-haiku-4-5-20251001"
+                    resultado_total.extend(consultas_frag)
+                else:
+                    session['last_ia_error'] = str(e)
+            except Exception as e2:
+                session['last_ia_error'] = str(e2)
+                print(f"IA HISTORIAL ERROR FALLBACK: {e2}", flush=True)
+
+    if resultado_total:
+        session.pop('last_ia_error', None)
+    return resultado_total
 # -----------------------------------------
 
 db = SQLAlchemy(app)
