@@ -206,23 +206,23 @@ Reglas de interpretación estricta:
 1. Para valores numéricos devuelve solo el número con punto decimal (ej. 76.25), sin unidades. Si hay dos pesos mencionados (ej. uno de evaluación previa y otro "hoy"), toma el peso actual/del día en `weight` y deja el detalle completo en `notes`.
 2. Fechas cortas como `DD.MM.AA` o `DD/MM/AA` (por ejemplo `27.03.26` -> `2026-03-27`, `29.04.26` -> `2026-04-29`): si hay fecha explícita de laboratorio distinta a la consulta, ponla en `lab_date` en formato `YYYY-MM-DD`; si no, `null`.
 3. `Inbody` / `InBody` / `Eval nutr Inbody`: NO es un estudio de imagen ni va a `otros_estudios`. Es composición corporal / balanza:
-   - Si menciona `Inbody` o `InBody`, pon `"InBody"` en `marca_balanza`.
-   - El peso de la consulta/día va a `weight` (si hay un peso de evaluación previa como `Eval nutr Inbody 26.03.26: peso 97.4 kg` y otro `Peso hoy 27.03.26: 98.3`, toma el peso del día/consulta en `weight` y conserva todo el detalle en `notes`).
-   - `MM` o masa muscular -> `muscle_mass_kg`
-   - `Grasa ...%` o `%grasa` -> `body_fat_pct`
-   - `GV` o grasa visceral -> `visceral_fat`
+  - Si menciona `Inbody` o `InBody`, pon `"InBody"` en `marca_balanza`.
+  - El peso de la consulta/día va a `weight` (si hay un peso de evaluación previa como `Eval nutr Inbody 26.03.26: peso 97.4 kg` y otro `Peso hoy 27.03.26: 98.3`, toma el peso del día/consulta en `weight` y conserva todo el detalle en `notes`).
+  - `MM` o masa muscular -> `muscle_mass_kg`
+  - `Grasa ...%` o `%grasa` -> `body_fat_pct`
+  - `GV` o grasa visceral -> `visceral_fat`
 4. Abreviaturas comunes en consultas/evaluaciones:
-   - `PA` o presión arterial -> `pa`
-   - `FC` -> `fc`
-   - `Hb` o hemoglobina -> `hemoglobin` (no lo mandes a `otros_laboratorios` si es un valor numérico)
-   - `Fe` o hierro sérico / ferremia -> `iron`
-   - `Ferritina` -> `ferritin`
-   - `GOT` / `AST` -> `got`; `GPT` / `ALT` -> `gpt` (extrae solo los números, sin duplicar en `otros_laboratorios`)
-   - `Tirze` / tirzepatida / fármacos y dosis -> `medications`
-   - Plan, indicaciones, dieta, pedidos -> `indicaciones_tratamiento`
-   - Próximo control / retorno (ej. `Control en 1 mes`) -> `proximo_control`
-   - Plaquetas: si vienen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo igual.
-   - `otros_estudios`: úsalo ÚNICAMENTE para estudios complementarios como ecografías, Doppler, tomografías, resonancias, holter, MAPA, etc., NUNCA para datos de InBody (peso, MM, %grasa, GV).
+  - `PA` o presión arterial -> `pa`
+  - `FC` -> `fc`
+  - `Hb` o hemoglobina -> `hemoglobin` (no lo mandes a `otros_laboratorios` si es un valor numérico)
+  - `Fe` o hierro sérico / ferremia -> `iron`
+  - `Ferritina` -> `ferritin`
+  - `GOT` / `AST` -> `got`; `GPT` / `ALT` -> `gpt` (extrae solo los números, sin duplicar en `otros_laboratorios`)
+  - `Tirze` / tirzepatida / fármacos y dosis -> `medications`
+  - Plan, indicaciones, dieta, pedidos -> `indicaciones_tratamiento`
+  - Próximo control / retorno (ej. `Control en 1 mes`) -> `proximo_control`
+  - Plaquetas: si vienen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo igual.
+  - `otros_estudios`: úsalo ÚNICAMENTE para estudios complementarios como ecografías, Doppler, tomografías, resonancias, holter, MAPA, etc., NUNCA para datos de InBody (peso, MM, %grasa, GV).
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques markdown) con estas claves exactas:
 {{
@@ -363,16 +363,18 @@ def _separar_bloques_por_fecha(texto, fecha_por_defecto):
     return bloques
 
 
-def _separar_labs_por_fecha(texto, fecha_por_defecto):
+def _separar_labs_y_texto_general(texto, fecha_por_defecto):
     lineas = [ln.strip() for ln in (texto or "").splitlines() if ln.strip()]
     if not lineas:
-        return []
+        return [], ""
 
     patron_lab_fecha = re.compile(
         r'^\s*lab(?:oratorio)?s?\s*[:\-]?\s*(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b',
         re.IGNORECASE
     )
+
     bloques_lab = []
+    lineas_generales = []
     actual_fecha = None
     actual_lineas = []
 
@@ -388,16 +390,20 @@ def _separar_labs_por_fecha(texto, fecha_por_defecto):
                 bloques_lab.append((actual_fecha, "\n".join(actual_lineas).strip()))
                 actual_fecha = None
                 actual_lineas = []
+                lineas_generales.append(ln)
             else:
                 actual_lineas.append(ln)
+        else:
+            lineas_generales.append(ln)
 
     if actual_fecha is not None and actual_lineas:
         bloques_lab.append((actual_fecha, "\n".join(actual_lineas).strip()))
 
     fechas_unicas = {f for f, _ in bloques_lab}
     if len(fechas_unicas) > 1:
-        return bloques_lab
-    return []
+        texto_general = "\n".join(lineas_generales).strip()
+        return bloques_lab, texto_general
+    return [], ""
 
 
 def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
@@ -978,7 +984,7 @@ def patient_detail(id):
         nota_libre = request.form.get('nota_libre', '').strip()
 
         if nota_libre:
-            bloques_labs = _separar_labs_por_fecha(nota_libre, fecha)
+            bloques_labs, texto_general = _separar_labs_y_texto_general(nota_libre, fecha)
             unidades_req = len(bloques_labs) if bloques_labs else 1
 
             permitido, uso_ia = puede_usar_ia(current_user, unidades_req)
@@ -1072,13 +1078,27 @@ def patient_detail(id):
                     db.session.add(record)
                     creados += 1
 
+                if texto_general:
+                    if not patient.tratamiento_base:
+                        lineas_tto = [
+                            ln for ln in texto_general.splitlines()
+                            if any(k in ln.lower() for k in ("tto", "tratamiento", "metformina", "tirze", "vitamina", "dosis"))
+                        ]
+                        if lineas_tto:
+                            patient.tratamiento_base = format_text("\n".join(lineas_tto))
+                    ultimo_creado = MedicalRecord.query.filter_by(patient_id=patient.id).order_by(MedicalRecord.id.desc()).first()
+                    if ultimo_creado:
+                        prev_notes = ultimo_creado.notes or ""
+                        if texto_general not in prev_notes:
+                            ultimo_creado.notes = (prev_notes + "\n\n" + texto_general).strip()
+
                 db.session.commit()
                 recalculate_deltas(patient.id)
 
                 uso_actual = obtener_o_crear_uso_ia(current_user) if current_user else None
                 cupo_txt = f" (Cupo IA mes: {uso_actual.extractions_count}/{uso_actual.monthly_limit})" if uso_actual and current_user.username != 'admin' else ""
                 if alguna_ia_ok:
-                    flash(f"✅ Se separaron y clasificaron {creados} laboratorio(s) por fecha en la planilla{cupo_txt}.", "success")
+                    flash(f"✅ Se separaron y clasificaron {creados} laboratorio(s) por fecha y se guardó el texto clínico/tratamiento de forma limpia{cupo_txt}.", "success")
                 elif ultimo_err:
                     flash(f"⚠️ Registros guardados, pero la IA no pudo clasificarlos ({ultimo_err}).", "warning")
                 else:
