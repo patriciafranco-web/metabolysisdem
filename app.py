@@ -363,6 +363,43 @@ def _separar_bloques_por_fecha(texto, fecha_por_defecto):
     return bloques
 
 
+def _separar_labs_por_fecha(texto, fecha_por_defecto):
+    lineas = [ln.strip() for ln in (texto or "").splitlines() if ln.strip()]
+    if not lineas:
+        return []
+
+    patron_lab_fecha = re.compile(
+        r'^\s*lab(?:oratorio)?s?\s*[:\-]?\s*(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b',
+        re.IGNORECASE
+    )
+    bloques_lab = []
+    actual_fecha = None
+    actual_lineas = []
+
+    for ln in lineas:
+        m = patron_lab_fecha.match(ln)
+        if m:
+            if actual_fecha is not None:
+                bloques_lab.append((actual_fecha, "\n".join(actual_lineas).strip()))
+            actual_fecha = _normalizar_fecha_corta(m)
+            actual_lineas = [ln]
+        elif actual_fecha is not None:
+            if re.match(r'^(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b', ln) or ln.lower().startswith("plan"):
+                bloques_lab.append((actual_fecha, "\n".join(actual_lineas).strip()))
+                actual_fecha = None
+                actual_lineas = []
+            else:
+                actual_lineas.append(ln)
+
+    if actual_fecha is not None and actual_lineas:
+        bloques_lab.append((actual_fecha, "\n".join(actual_lineas).strip()))
+
+    fechas_unicas = {f for f, _ in bloques_lab}
+    if len(fechas_unicas) > 1:
+        return bloques_lab
+    return []
+
+
 def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
@@ -941,7 +978,10 @@ def patient_detail(id):
         nota_libre = request.form.get('nota_libre', '').strip()
 
         if nota_libre:
-            permitido, uso_ia = puede_usar_ia(current_user, 1)
+            bloques_labs = _separar_labs_por_fecha(nota_libre, fecha)
+            unidades_req = len(bloques_labs) if bloques_labs else 1
+
+            permitido, uso_ia = puede_usar_ia(current_user, unidades_req)
             if not permitido:
                 record = MedicalRecord(
                     patient_id=patient.id,
@@ -957,80 +997,165 @@ def patient_detail(id):
                 )
                 return redirect(url_for('patient_detail', id=patient.id))
 
-            datos = extraer_datos_con_ia(nota_libre, contar_uso=True)
+            altura_base = next((r.height for r in all_records if r.height), None)
 
-            altura_final = parse_float(datos.get('height'))
-            if not altura_final:
-                altura_final = next((r.height for r in all_records if r.height), None)
+            if bloques_labs:
+                creados = 0
+                alguna_ia_ok = False
+                ultimo_err = ""
+                for fecha_lab_item, texto_lab_item in bloques_labs:
+                    datos = extraer_datos_con_ia(texto_lab_item, contar_uso=True)
+                    if datos:
+                        alguna_ia_ok = True
+                    else:
+                        ultimo_err = session.pop('last_ia_error', '') or ultimo_err
 
-            record = MedicalRecord(
-                patient_id=patient.id,
-                date=fecha,
-                lab_date=datos.get('lab_date'),
-                marca_balanza=datos.get('marca_balanza'),
-                pa=datos.get('pa'),
-                fc=parse_int(datos.get('fc')),
-                height=altura_final,
-                weight=parse_float(datos.get('weight')),
-                waist=parse_float(datos.get('waist')),
-                body_fat_pct=parse_float(datos.get('body_fat_pct')),
-                body_fat_kg=parse_float(datos.get('body_fat_kg')),
-                visceral_fat=parse_float(datos.get('visceral_fat')),
-                muscle_mass_kg=parse_float(datos.get('muscle_mass_kg')),
-                basal_metabolism=parse_float(datos.get('basal_metabolism')),
-                hemoglobin=parse_float(datos.get('hemoglobin')),
-                glucose=parse_float(datos.get('glucose')),
-                insulin=parse_float(datos.get('insulin')),
-                hba1c=parse_float(datos.get('hba1c')),
-                triglycerides=parse_float(datos.get('triglycerides')),
-                cholesterol_tot=parse_float(datos.get('cholesterol_tot')),
-                hdl=parse_float(datos.get('hdl')),
-                ldl=parse_float(datos.get('ldl')),
-                vldl=parse_float(datos.get('vldl')),
-                uric_acid=parse_float(datos.get('uric_acid')),
-                got=parse_float(datos.get('got')),
-                gpt=parse_float(datos.get('gpt')),
-                fa=parse_float(datos.get('fa')),
-                bili_tot=parse_float(datos.get('bili_tot')),
-                bili_dir=parse_float(datos.get('bili_dir')),
-                bili_ind=parse_float(datos.get('bili_ind')),
-                urea=parse_float(datos.get('urea')),
-                creatinine=parse_float(datos.get('creatinine')),
-                tsh=parse_float(datos.get('tsh')),
-                t4=parse_float(datos.get('t4')),
-                t3=parse_float(datos.get('t3')),
-                anti_tpo=parse_float(datos.get('anti_tpo')),
-                vit_d=parse_float(datos.get('vit_d')),
-                vit_b12=parse_float(datos.get('vit_b12')),
-                iron=parse_float(datos.get('iron')),
-                ferritin=parse_float(datos.get('ferritin')),
-                calcium=parse_float(datos.get('calcium')),
-                magnesium=parse_float(datos.get('magnesium')),
-                phosphorus=parse_float(datos.get('phosphorus')),
-                chlorine=parse_float(datos.get('chlorine')),
-                platelets=parse_float(datos.get('platelets')),
-                otros_laboratorios=datos.get('otros_laboratorios'),
-                ecografia_abdominal=datos.get('ecografia_abdominal'),
-                ecografia_tiroidea=datos.get('ecografia_tiroidea'),
-                otros_estudios=datos.get('otros_estudios'),
-                medications=datos.get('medications'),
-                indicaciones_tratamiento=datos.get('indicaciones_tratamiento'),
-                proximo_control=datos.get('proximo_control'),
-                notes=nota_libre
-            )
-            db.session.add(record)
-            db.session.commit()
-            recalculate_deltas(patient.id)
+                    altura_item = parse_float(datos.get('height')) or altura_base
+                    if altura_item:
+                        altura_base = altura_item
 
-            err_ia = session.pop('last_ia_error', '')
-            uso_actual = obtener_o_crear_uso_ia(current_user) if current_user else None
-            cupo_txt = f" (Cupo IA mes: {uso_actual.extractions_count}/{uso_actual.monthly_limit})" if uso_actual and current_user.username != 'admin' else ""
-            if datos:
-                flash(f"✅ Consulta guardada y datos clasificados automáticamente con IA en la planilla{cupo_txt}.", "success")
-            elif err_ia:
-                flash(f"⚠️ Consulta guardada, pero la IA no pudo clasificar los datos ({err_ia}).", "warning")
+                    record = MedicalRecord(
+                        patient_id=patient.id,
+                        date=fecha_lab_item,
+                        lab_date=datos.get('lab_date') or fecha_lab_item,
+                        marca_balanza=datos.get('marca_balanza'),
+                        pa=datos.get('pa'),
+                        fc=parse_int(datos.get('fc')),
+                        height=altura_item,
+                        weight=parse_float(datos.get('weight')),
+                        waist=parse_float(datos.get('waist')),
+                        body_fat_pct=parse_float(datos.get('body_fat_pct')),
+                        body_fat_kg=parse_float(datos.get('body_fat_kg')),
+                        visceral_fat=parse_float(datos.get('visceral_fat')),
+                        muscle_mass_kg=parse_float(datos.get('muscle_mass_kg')),
+                        basal_metabolism=parse_float(datos.get('basal_metabolism')),
+                        hemoglobin=parse_float(datos.get('hemoglobin')),
+                        glucose=parse_float(datos.get('glucose')),
+                        insulin=parse_float(datos.get('insulin')),
+                        hba1c=parse_float(datos.get('hba1c')),
+                        triglycerides=parse_float(datos.get('triglycerides')),
+                        cholesterol_tot=parse_float(datos.get('cholesterol_tot')),
+                        hdl=parse_float(datos.get('hdl')),
+                        ldl=parse_float(datos.get('ldl')),
+                        vldl=parse_float(datos.get('vldl')),
+                        uric_acid=parse_float(datos.get('uric_acid')),
+                        got=parse_float(datos.get('got')),
+                        gpt=parse_float(datos.get('gpt')),
+                        fa=parse_float(datos.get('fa')),
+                        bili_tot=parse_float(datos.get('bili_tot')),
+                        bili_dir=parse_float(datos.get('bili_dir')),
+                        bili_ind=parse_float(datos.get('bili_ind')),
+                        urea=parse_float(datos.get('urea')),
+                        creatinine=parse_float(datos.get('creatinine')),
+                        tsh=parse_float(datos.get('tsh')),
+                        t4=parse_float(datos.get('t4')),
+                        t3=parse_float(datos.get('t3')),
+                        anti_tpo=parse_float(datos.get('anti_tpo')),
+                        vit_d=parse_float(datos.get('vit_d')),
+                        vit_b12=parse_float(datos.get('vit_b12')),
+                        iron=parse_float(datos.get('iron')),
+                        ferritin=parse_float(datos.get('ferritin')),
+                        calcium=parse_float(datos.get('calcium')),
+                        magnesium=parse_float(datos.get('magnesium')),
+                        phosphorus=parse_float(datos.get('phosphorus')),
+                        chlorine=parse_float(datos.get('chlorine')),
+                        platelets=parse_float(datos.get('platelets')),
+                        otros_laboratorios=datos.get('otros_laboratorios'),
+                        ecografia_abdominal=datos.get('ecografia_abdominal'),
+                        ecografia_tiroidea=datos.get('ecografia_tiroidea'),
+                        otros_estudios=datos.get('otros_estudios'),
+                        medications=datos.get('medications'),
+                        indicaciones_tratamiento=datos.get('indicaciones_tratamiento'),
+                        proximo_control=datos.get('proximo_control'),
+                        notes=texto_lab_item
+                    )
+                    db.session.add(record)
+                    creados += 1
+
+                db.session.commit()
+                recalculate_deltas(patient.id)
+
+                uso_actual = obtener_o_crear_uso_ia(current_user) if current_user else None
+                cupo_txt = f" (Cupo IA mes: {uso_actual.extractions_count}/{uso_actual.monthly_limit})" if uso_actual and current_user.username != 'admin' else ""
+                if alguna_ia_ok:
+                    flash(f"✅ Se separaron y clasificaron {creados} laboratorio(s) por fecha en la planilla{cupo_txt}.", "success")
+                elif ultimo_err:
+                    flash(f"⚠️ Registros guardados, pero la IA no pudo clasificarlos ({ultimo_err}).", "warning")
+                else:
+                    flash("✅ Registros guardados por fecha.", "info")
             else:
-                flash("✅ Consulta guardada (sin clasificación IA: verifique ANTHROPIC_API_KEY si desea extracción automática).", "info")
+                datos = extraer_datos_con_ia(nota_libre, contar_uso=True)
+
+                altura_final = parse_float(datos.get('height')) or altura_base
+
+                record = MedicalRecord(
+                    patient_id=patient.id,
+                    date=fecha,
+                    lab_date=datos.get('lab_date'),
+                    marca_balanza=datos.get('marca_balanza'),
+                    pa=datos.get('pa'),
+                    fc=parse_int(datos.get('fc')),
+                    height=altura_final,
+                    weight=parse_float(datos.get('weight')),
+                    waist=parse_float(datos.get('waist')),
+                    body_fat_pct=parse_float(datos.get('body_fat_pct')),
+                    body_fat_kg=parse_float(datos.get('body_fat_kg')),
+                    visceral_fat=parse_float(datos.get('visceral_fat')),
+                    muscle_mass_kg=parse_float(datos.get('muscle_mass_kg')),
+                    basal_metabolism=parse_float(datos.get('basal_metabolism')),
+                    hemoglobin=parse_float(datos.get('hemoglobin')),
+                    glucose=parse_float(datos.get('glucose')),
+                    insulin=parse_float(datos.get('insulin')),
+                    hba1c=parse_float(datos.get('hba1c')),
+                    triglycerides=parse_float(datos.get('triglycerides')),
+                    cholesterol_tot=parse_float(datos.get('cholesterol_tot')),
+                    hdl=parse_float(datos.get('hdl')),
+                    ldl=parse_float(datos.get('ldl')),
+                    vldl=parse_float(datos.get('vldl')),
+                    uric_acid=parse_float(datos.get('uric_acid')),
+                    got=parse_float(datos.get('got')),
+                    gpt=parse_float(datos.get('gpt')),
+                    fa=parse_float(datos.get('fa')),
+                    bili_tot=parse_float(datos.get('bili_tot')),
+                    bili_dir=parse_float(datos.get('bili_dir')),
+                    bili_ind=parse_float(datos.get('bili_ind')),
+                    urea=parse_float(datos.get('urea')),
+                    creatinine=parse_float(datos.get('creatinine')),
+                    tsh=parse_float(datos.get('tsh')),
+                    t4=parse_float(datos.get('t4')),
+                    t3=parse_float(datos.get('t3')),
+                    anti_tpo=parse_float(datos.get('anti_tpo')),
+                    vit_d=parse_float(datos.get('vit_d')),
+                    vit_b12=parse_float(datos.get('vit_b12')),
+                    iron=parse_float(datos.get('iron')),
+                    ferritin=parse_float(datos.get('ferritin')),
+                    calcium=parse_float(datos.get('calcium')),
+                    magnesium=parse_float(datos.get('magnesium')),
+                    phosphorus=parse_float(datos.get('phosphorus')),
+                    chlorine=parse_float(datos.get('chlorine')),
+                    platelets=parse_float(datos.get('platelets')),
+                    otros_laboratorios=datos.get('otros_laboratorios'),
+                    ecografia_abdominal=datos.get('ecografia_abdominal'),
+                    ecografia_tiroidea=datos.get('ecografia_tiroidea'),
+                    otros_estudios=datos.get('otros_estudios'),
+                    medications=datos.get('medications'),
+                    indicaciones_tratamiento=datos.get('indicaciones_tratamiento'),
+                    proximo_control=datos.get('proximo_control'),
+                    notes=nota_libre
+                )
+                db.session.add(record)
+                db.session.commit()
+                recalculate_deltas(patient.id)
+
+                err_ia = session.pop('last_ia_error', '')
+                uso_actual = obtener_o_crear_uso_ia(current_user) if current_user else None
+                cupo_txt = f" (Cupo IA mes: {uso_actual.extractions_count}/{uso_actual.monthly_limit})" if uso_actual and current_user.username != 'admin' else ""
+                if datos:
+                    flash(f"✅ Consulta guardada y datos clasificados automáticamente con IA en la planilla{cupo_txt}.", "success")
+                elif err_ia:
+                    flash(f"⚠️ Consulta guardada, pero la IA no pudo clasificar los datos ({err_ia}).", "warning")
+                else:
+                    flash("✅ Consulta guardada (sin clasificación IA: verifique ANTHROPIC_API_KEY si desea extracción automática).", "info")
 
         return redirect(url_for('patient_detail', id=patient.id))
 
