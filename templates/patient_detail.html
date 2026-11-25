@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>{{ patient.full_name }} - METABOLISYS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css)" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             background-color: #121212 !important;
@@ -100,12 +100,12 @@
         }
         .planilla-table th {
             white-space: nowrap;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
         }
         .planilla-table td {
-            font-size: 0.84rem;
+            font-size: 0.82rem;
         }
-        .sticky-param-col {
+        .sticky-lab-col {
             position: sticky;
             left: 0;
             z-index: 2;
@@ -113,7 +113,7 @@
             color: #f8f9fa !important;
             text-align: left !important;
             font-weight: 600;
-            min-width: 150px;
+            min-width: 155px;
         }
         .btn-voice {
             display: inline-flex;
@@ -368,7 +368,7 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- PESTANA 3: PLANILLA AUTOMATICA (PESO / LABS / ECOGRAFIAS)  -->
+        <!-- PESTANA 3: PLANILLA AUTOMATICA (PESO / LABS VERTICAL / ESTUDIOS) -->
         <!-- ========================================================== -->
         <div class="tab-pane fade" id="planilla" role="tabpanel">
             <div class="card p-4">
@@ -430,12 +430,12 @@
                     </table>
                 </div>
 
-                <!-- SUB-VISTA 2: LABORATORIOS EN VERTICAL (ORDEN EXACTO DRA. MULLER) -->
+                <!-- SUB-VISTA 2: LABORATORIOS EN VERTICAL -->
                 <div id="vistaLabsContainer" class="table-responsive" style="display: none;">
                     <table class="table table-dark table-striped table-bordered table-hover align-middle text-center planilla-table">
                         <thead class="table-secondary text-dark">
                             <tr>
-                                <th class="sticky-param-col" style="background-color: #ced4da !important; color: #1a1a1a !important;">Parametro</th>
+                                <th class="sticky-lab-col" style="background-color: #ced4da !important; color: #1a1a1a !important;">Laboratorio</th>
                                 {% for r in all_records %}
                                 <th class="text-nowrap">
                                     {{ r.date }}
@@ -446,78 +446,78 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="sticky-param-col">Hb (hemoglobina)</td>
+                                <td class="sticky-lab-col">Hb (hemoglobina)</td>
                                 {% for r in all_records %}<td>{{ r.hemoglobin or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Glic</td>
+                                <td class="sticky-lab-col">Glic</td>
                                 {% for r in all_records %}<td>{{ r.glucose or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">HbA1c</td>
+                                <td class="sticky-lab-col">HbA1c</td>
                                 {% for r in all_records %}<td>{{ r.hba1c or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">U / Creat</td>
+                                <td class="sticky-lab-col">U / Creat</td>
                                 {% for r in all_records %}<td class="text-nowrap">{{ r.urea or '-' }} / {{ r.creatinine or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">GOT / GPT</td>
+                                <td class="sticky-lab-col">GOT / GPT</td>
                                 {% for r in all_records %}<td class="text-nowrap">{{ r.got or '-' }} / {{ r.gpt or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Col / HDL / LDL</td>
+                                <td class="sticky-lab-col">Col / HDL / LDL</td>
                                 {% for r in all_records %}<td class="text-nowrap">{{ r.cholesterol_tot or '-' }} / {{ r.hdl or '-' }} / {{ r.ldl or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">TG</td>
+                                <td class="sticky-lab-col">TG</td>
                                 {% for r in all_records %}<td>{{ r.triglycerides or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Tg / HDL</td>
+                                <td class="sticky-lab-col">Tg / HDL</td>
                                 {% for r in all_records %}<td>{{ r.tg_hdl or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Ac. Urico</td>
+                                <td class="sticky-lab-col">Ac. Urico</td>
                                 {% for r in all_records %}<td>{{ r.uric_acid or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Ca / Mg</td>
+                                <td class="sticky-lab-col">Ca / Mg</td>
                                 {% for r in all_records %}<td class="text-nowrap">{{ r.calcium or '-' }} / {{ r.magnesium or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">TSH / FT4</td>
+                                <td class="sticky-lab-col">TSH / FT4</td>
                                 {% for r in all_records %}<td class="text-nowrap">{{ r.tsh or '-' }} / {{ r.t4 or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Vit D</td>
+                                <td class="sticky-lab-col">Vit D</td>
                                 {% for r in all_records %}<td class="text-white">{{ r.vit_d or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Vit B12</td>
+                                <td class="sticky-lab-col">Vit B12</td>
                                 {% for r in all_records %}<td class="text-white">{{ r.vit_b12 or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Fe / Ferritina</td>
+                                <td class="sticky-lab-col">Fe / Ferritina</td>
                                 {% for r in all_records %}<td class="text-nowrap">{{ r.iron or '-' }} / {{ r.ferritin or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Insulina</td>
+                                <td class="sticky-lab-col">Insulina</td>
                                 {% for r in all_records %}<td>{{ r.insulin or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">FIB-4</td>
+                                <td class="sticky-lab-col">FIB-4</td>
                                 {% for r in all_records %}<td class="text-info fw-bold">{{ r.fib4 or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="sticky-param-col">Otros Labs</td>
+                                <td class="sticky-lab-col">Otros Labs</td>
                                 {% for r in all_records %}<td class="text-start" style="min-width: 170px; white-space: pre-wrap;">{{ r.otros_laboratorios or '-' }}</td>{% endfor %}
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- SUB-VISTA 3: ECOGRAFIAS Y ESTUDIOS SEPARADOS -->
+                <!-- SUB-VISTA 3: ECOGRAFIAS Y ESTUDIOS -->
                 <div id="vistaEstudiosContainer" class="table-responsive" style="display: none;">
                     <table class="table table-dark table-striped table-bordered table-hover align-middle text-center planilla-table">
                         <thead class="table-secondary text-dark">
@@ -582,7 +582,7 @@
     </div>
 </div>
 
-<script src="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js)"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 let recognition = null;
 let dictando = false;
