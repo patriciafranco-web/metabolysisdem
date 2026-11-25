@@ -49,6 +49,13 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 # -------------------------------------------------
 
+PLAN_LIMITS_IA = {
+    'basico': 250,
+    'profesional': 600,
+    'clinica': 1500,
+    'admin': 999999
+}
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -76,6 +83,76 @@ def parse_int(value):
     except:
         return None
 # ----------------------------------------
+
+db = SQLAlchemy(app)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    full_name = db.Column(db.String(100), nullable=True)
+    password_hash = db.Column(db.Text, nullable=False)
+    expiry_date = db.Column(db.String(20), nullable=True)
+    plan_name = db.Column(db.String(30), nullable=True, default='basico')
+    monthly_ai_limit = db.Column(db.Integer, nullable=True, default=250)
+
+class AiUsageLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    year_month = db.Column(db.String(7), nullable=False)  # Ej: "2026-11"
+    extractions_count = db.Column(db.Integer, nullable=False, default=0)
+    monthly_limit = db.Column(db.Integer, nullable=False, default=250)
+    updated_at = db.Column(db.String(30), nullable=True)
+
+def get_current_user():
+    uid = session.get('user_id')
+    return User.query.get(uid) if uid else None
+
+def _limite_ia_usuario(user):
+    if not user:
+        return 250
+    if user.username == 'admin':
+        return PLAN_LIMITS_IA['admin']
+    if user.monthly_ai_limit and user.monthly_ai_limit > 0:
+        return user.monthly_ai_limit
+    plan_key = (user.plan_name or 'basico').lower().strip()
+    return PLAN_LIMITS_IA.get(plan_key, 250)
+
+def obtener_o_crear_uso_ia(user):
+    ym = date.today().strftime('%Y-%m')
+    limite = _limite_ia_usuario(user)
+    uso = AiUsageLog.query.filter_by(user_id=user.id, year_month=ym).first()
+    if not uso:
+        uso = AiUsageLog(
+            user_id=user.id,
+            year_month=ym,
+            extractions_count=0,
+            monthly_limit=limite,
+            updated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        )
+        db.session.add(uso)
+        db.session.commit()
+    elif uso.monthly_limit != limite:
+        uso.monthly_limit = limite
+        db.session.commit()
+    return uso
+
+def puede_usar_ia(user, unidades_necesarias=1):
+    if not user:
+        return False, None
+    if user.username == 'admin':
+        return True, obtener_o_crear_uso_ia(user)
+    uso = obtener_o_crear_uso_ia(user)
+    restante = (uso.monthly_limit or 250) - (uso.extractions_count or 0)
+    return restante >= unidades_necesarias, uso
+
+def registrar_uso_ia(user, unidades=1):
+    if not user or unidades <= 0:
+        return
+    uso = obtener_o_crear_uso_ia(user)
+    uso.extractions_count = (uso.extractions_count or 0) + int(unidades)
+    uso.updated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    db.session.commit()
+    print(f"USO IA [{uso.year_month}] usuario={user.username}: {uso.extractions_count}/{uso.monthly_limit}", flush=True)
 
 # --- EXTRACTOR CLÍNICO CON IA (CLAUDE SONNET 5.5 + FALLBACK / ANTHROPIC) ---
 MODELOS_CLAUDE = [
@@ -110,7 +187,7 @@ def _limpiar_y_cargar_json(raw_text):
         except Exception:
             return None
 
-def extraer_datos_con_ia(texto_consulta):
+def extraer_datos_con_ia(texto_consulta, contar_uso=True):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
         session['last_ia_error'] = "Falta la variable ANTHROPIC_API_KEY en Render."
@@ -224,6 +301,8 @@ NOTA MÉDICA:
                 ).strip()
                 parsed = _limpiar_y_cargar_json(raw_text)
                 if isinstance(parsed, dict):
+                    if contar_uso:
+                        registrar_uso_ia(get_current_user(), 1)
                     return parsed
             else:
                 ultimo_error = f"HTTP {resp.status_code} ({modelo}): {resp.text[:180]}"
@@ -292,24 +371,21 @@ def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
         bloques = [(fecha_por_defecto, texto)]
 
     consultas_resultado = []
+    procesados_ia = 0
     for fecha_bloque, texto_bloque in bloques[:6]:
-        datos_ia = extraer_datos_con_ia(texto_bloque)
+        datos_ia = extraer_datos_con_ia(texto_bloque, contar_uso=False)
         item = dict(datos_ia) if isinstance(datos_ia, dict) else {}
+        if datos_ia:
+            procesados_ia += 1
         item["date"] = fecha_bloque
         item["notes"] = texto_bloque
         consultas_resultado.append(item)
 
+    if procesados_ia > 0:
+        registrar_uso_ia(get_current_user(), procesados_ia)
+
     return consultas_resultado
 # -----------------------------------------
-
-db = SQLAlchemy(app)
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    full_name = db.Column(db.String(100), nullable=True)
-    password_hash = db.Column(db.Text, nullable=False)
-    expiry_date = db.Column(db.String(20), nullable=True)
 
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -516,59 +592,61 @@ def recalculate_deltas(patient_id):
 with app.app_context():
     db.create_all()
 
-    try:
-        db.session.execute(text('ALTER TABLE medical_record ADD COLUMN platelets FLOAT'))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-
-    try:
-        db.session.execute(text('ALTER TABLE patient ADD COLUMN user_id INTEGER'))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-
-    try:
-        db.session.execute(text('ALTER TABLE user ADD COLUMN full_name VARCHAR(100)'))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+    for alter_sql in [
+        'ALTER TABLE medical_record ADD COLUMN platelets FLOAT',
+        'ALTER TABLE patient ADD COLUMN user_id INTEGER',
+        'ALTER TABLE user ADD COLUMN full_name VARCHAR(100)',
+        "ALTER TABLE user ADD COLUMN plan_name VARCHAR(30) DEFAULT 'basico'",
+        'ALTER TABLE user ADD COLUMN monthly_ai_limit INTEGER DEFAULT 250'
+    ]:
+        try:
+            db.session.execute(text(alter_sql))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     admin_user = User.query.filter_by(username='admin').first()
     if not admin_user:
         hashed_pw = generate_password_hash('metabosys2026', method='pbkdf2:sha256')
-        admin_user = User(username='admin', full_name='Administrador', password_hash=hashed_pw, expiry_date=None)
+        admin_user = User(username='admin', full_name='Administrador', password_hash=hashed_pw, expiry_date=None, plan_name='admin', monthly_ai_limit=999999)
         db.session.add(admin_user)
         db.session.commit()
-    elif not admin_user.full_name:
-        admin_user.full_name = 'Administrador'
+    else:
+        if not admin_user.full_name:
+            admin_user.full_name = 'Administrador'
+        admin_user.plan_name = 'admin'
+        admin_user.monthly_ai_limit = 999999
         db.session.commit()
 
-    EXT_TAG_FILE = os.path.join(DATA_DIR, '.dra_muller_ext_10d')
+    # Cliente Plan Básico activado con 30 días de vencimiento (250 extracciones IA/mes)
+    PLAN_BASICO_TAG_FILE = os.path.join(DATA_DIR, '.plan_basico_30d_v1')
+    exp_30d = (date.today() + timedelta(days=30)).strftime('%Y-%m-%d')
+
     dra_muller = User.query.filter_by(username='alejandra.muller').first()
-    initial_exp = (date.today() + timedelta(days=20)).strftime('%Y-%m-%d')
     if not dra_muller:
         hashed_pw = generate_password_hash('dra12345', method='pbkdf2:sha256')
-        dra_muller = User(username='alejandra.muller', full_name='Dra. Alejandra Müller', password_hash=hashed_pw, expiry_date=initial_exp)
+        dra_muller = User(
+            username='alejandra.muller',
+            full_name='Dra. Alejandra Müller',
+            password_hash=hashed_pw,
+            expiry_date=exp_30d,
+            plan_name='basico',
+            monthly_ai_limit=250
+        )
         db.session.add(dra_muller)
         db.session.commit()
-        with open(EXT_TAG_FILE, 'w') as f:
+        with open(PLAN_BASICO_TAG_FILE, 'w') as f:
             f.write('applied')
     else:
         if not dra_muller.full_name:
             dra_muller.full_name = 'Dra. Alejandra Müller'
-            db.session.commit()
-        if not os.path.exists(EXT_TAG_FILE):
-            try:
-                base_date = datetime.strptime(dra_muller.expiry_date, '%Y-%m-%d').date() if dra_muller.expiry_date else date.today()
-            except Exception:
-                base_date = date.today()
-            if base_date < date.today():
-                base_date = date.today()
-            dra_muller.expiry_date = (base_date + timedelta(days=10)).strftime('%Y-%m-%d')
-            db.session.commit()
-            with open(EXT_TAG_FILE, 'w') as f:
+        dra_muller.plan_name = 'basico'
+        dra_muller.monthly_ai_limit = 250
+        if not os.path.exists(PLAN_BASICO_TAG_FILE):
+            dra_muller.expiry_date = exp_30d
+            with open(PLAN_BASICO_TAG_FILE, 'w') as f:
                 f.write('applied')
+        db.session.commit()
 
     if dra_muller:
         Patient.query.filter(Patient.user_id.is_(None)).update({Patient.user_id: dra_muller.id}, synchronize_session=False)
@@ -582,7 +660,9 @@ with app.app_context():
             username='camila.chaparro',
             full_name='Dra. Camila Chaparro',
             password_hash=hashed_pw_camila,
-            expiry_date=exp_camila
+            expiry_date=exp_camila,
+            plan_name='basico',
+            monthly_ai_limit=250
         )
         db.session.add(dra_camila)
         db.session.commit()
@@ -598,17 +678,15 @@ with app.app_context():
             username='tamires.soster',
             full_name='Dra. Tamires Soster',
             password_hash=hashed_pw_tamires,
-            expiry_date=exp_tamires
+            expiry_date=exp_tamires,
+            plan_name='basico',
+            monthly_ai_limit=250
         )
         db.session.add(dra_tamires)
         db.session.commit()
     elif not dra_tamires.full_name:
         dra_tamires.full_name = 'Dra. Tamires Soster'
         db.session.commit()
-
-def get_current_user():
-    uid = session.get('user_id')
-    return User.query.get(uid) if uid else None
 
 def get_patient_for_current_user(patient_id):
     patient = Patient.query.get_or_404(patient_id)
@@ -633,7 +711,7 @@ def login_required(f):
                 exp_date = datetime.strptime(user.expiry_date, '%Y-%m-%d').date()
                 if date.today() > exp_date:
                     session.clear()
-                    return render_template('login.html', error='Su periodo de prueba ha expirado.')
+                    return render_template('login.html', error='Su periodo ha vencido. Contacte a MEDYSIS PY para renovar.')
             except:
                 pass
 
@@ -653,7 +731,7 @@ def login():
                 try:
                     exp_date = datetime.strptime(user.expiry_date, '%Y-%m-%d').date()
                     if date.today() > exp_date:
-                        return render_template('login.html', error='Su periodo de prueba ha expirado.')
+                        return render_template('login.html', error='Su periodo ha vencido. Contacte a MEDYSIS PY para renovar.')
                 except:
                     pass
 
@@ -704,7 +782,17 @@ def index():
         base_san = base_san.filter_by(user_id=current_user.id)
     sanatorios = [s[0] for s in base_san.with_entities(Patient.sanatorio).distinct().all() if s[0]]
 
-    return render_template('index.html', patients=patients, sanatorios=sanatorios, current_sanatorio=sanatorio_filter, search_query=search_query)
+    uso_ia = obtener_o_crear_uso_ia(current_user) if current_user else None
+
+    return render_template(
+        'index.html',
+        patients=patients,
+        sanatorios=sanatorios,
+        current_sanatorio=sanatorio_filter,
+        search_query=search_query,
+        uso_ia=uso_ia,
+        current_user=current_user
+    )
 
 @app.route('/patient/new', methods=['GET', 'POST'])
 @login_required
@@ -825,6 +913,7 @@ def patient_detail(id):
     if not patient:
         flash("No tiene permisos para acceder a este paciente.", "warning")
         return redirect(url_for('index'))
+    current_user = get_current_user()
     all_records = sorted(patient.records, key=lambda x: (x.date or '', x.id), reverse=True)
     today_str = date.today().strftime('%Y-%m-%d')
 
@@ -833,7 +922,23 @@ def patient_detail(id):
         nota_libre = request.form.get('nota_libre', '').strip()
 
         if nota_libre:
-            datos = extraer_datos_con_ia(nota_libre)
+            permitido, uso_ia = puede_usar_ia(current_user, 1)
+            if not permitido:
+                record = MedicalRecord(
+                    patient_id=patient.id,
+                    date=fecha,
+                    height=next((r.height for r in all_records if r.height), None),
+                    notes=nota_libre
+                )
+                db.session.add(record)
+                db.session.commit()
+                flash(
+                    f"⚠️ Consulta guardada en notas, pero alcanzó su límite mensual de IA ({uso_ia.extractions_count}/{uso_ia.monthly_limit} extracciones).",
+                    "warning"
+                )
+                return redirect(url_for('patient_detail', id=patient.id))
+
+            datos = extraer_datos_con_ia(nota_libre, contar_uso=True)
 
             altura_final = parse_float(datos.get('height'))
             if not altura_final:
@@ -896,8 +1001,10 @@ def patient_detail(id):
             recalculate_deltas(patient.id)
 
             err_ia = session.pop('last_ia_error', '')
+            uso_actual = obtener_o_crear_uso_ia(current_user) if current_user else None
+            cupo_txt = f" (Cupo IA mes: {uso_actual.extractions_count}/{uso_actual.monthly_limit})" if uso_actual and current_user.username != 'admin' else ""
             if datos:
-                flash("✅ Consulta guardada y datos clasificados automáticamente con IA en la planilla.", "success")
+                flash(f"✅ Consulta guardada y datos clasificados automáticamente con IA en la planilla{cupo_txt}.", "success")
             elif err_ia:
                 flash(f"⚠️ Consulta guardada, pero la IA no pudo clasificar los datos ({err_ia}).", "warning")
             else:
@@ -910,6 +1017,7 @@ def patient_detail(id):
     dates = [r.date for r in valid_records]
     hba1c_data = [r.hba1c for r in valid_records if r.hba1c]
     weight_data = [r.weight for r in valid_records if r.weight]
+    uso_ia = obtener_o_crear_uso_ia(current_user) if current_user else None
 
     return render_template(
         'patient_detail.html',
@@ -920,7 +1028,8 @@ def patient_detail(id):
         dates=dates,
         hba1c_data=hba1c_data,
         weight_data=weight_data,
-        today_str=today_str
+        today_str=today_str,
+        uso_ia=uso_ia
     )
 
 # --- RUTA PARA SUBIR Y PREVISUALIZAR ARCHIVO WORD (.docx) O PDF (.pdf) ---
@@ -931,6 +1040,7 @@ def import_docx(patient_id):
     if not patient:
         flash("No tiene permisos para acceder a este paciente.", "warning")
         return redirect(url_for('index'))
+    current_user = get_current_user()
 
     session_key_text = f"docx_preview_text_{patient.id}"
     session_key_file = f"docx_preview_file_{patient.id}"
@@ -1022,10 +1132,28 @@ def import_docx(patient_id):
 
             if final_text:
                 today_str = date.today().strftime('%Y-%m-%d')
-                consultas = extraer_historial_por_fecha_con_ia(final_text, today_str)
-
                 existentes = sorted(patient.records, key=lambda x: (x.date or '', x.id), reverse=True)
                 altura_base = next((r.height for r in existentes if r.height), None)
+
+                permitido, uso_ia = puede_usar_ia(current_user, 1)
+                if not permitido:
+                    record = MedicalRecord(
+                        patient_id=patient.id,
+                        date=today_str,
+                        height=altura_base,
+                        weight=None,
+                        notes=final_text,
+                        indicaciones_tratamiento="Historial importado sin IA por límite mensual alcanzado."
+                    )
+                    db.session.add(record)
+                    db.session.commit()
+                    flash(
+                        f"⚠️ Historial guardado en notas, pero alcanzó su límite mensual de IA ({uso_ia.extractions_count}/{uso_ia.monthly_limit} extracciones).",
+                        "warning"
+                    )
+                    return redirect(url_for('patient_detail', id=patient.id))
+
+                consultas = extraer_historial_por_fecha_con_ia(final_text, today_str)
 
                 if consultas:
                     consultas_ordenadas = sorted(consultas, key=lambda x: str(x.get('date') or today_str))
@@ -1093,7 +1221,9 @@ def import_docx(patient_id):
 
                     db.session.commit()
                     recalculate_deltas(patient.id)
-                    flash(f"✅ Historial procesado: se cargaron {creados} consulta(s) por fecha en la planilla.", "success")
+                    uso_actual = obtener_o_crear_uso_ia(current_user) if current_user else None
+                    cupo_txt = f" (Cupo IA mes: {uso_actual.extractions_count}/{uso_actual.monthly_limit})" if uso_actual and current_user.username != 'admin' else ""
+                    flash(f"✅ Historial procesado: se cargaron {creados} consulta(s) por fecha en la planilla{cupo_txt}.", "success")
                 else:
                     record = MedicalRecord(
                         patient_id=patient.id,
@@ -1115,7 +1245,8 @@ def import_docx(patient_id):
 
     preview_text = session.get(session_key_text, '')
     filename_saved = session.get(session_key_file, '')
-    return render_template('import_docx.html', patient=patient, preview_text=preview_text, filename_saved=filename_saved)
+    uso_ia = obtener_o_crear_uso_ia(current_user) if current_user else None
+    return render_template('import_docx.html', patient=patient, preview_text=preview_text, filename_saved=filename_saved, uso_ia=uso_ia)
 
 @app.route('/record/new/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
