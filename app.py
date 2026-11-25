@@ -214,6 +214,10 @@ Reglas de interpretación estricta:
 4. Abreviaturas comunes en consultas/evaluaciones:
    - `PA` o presión arterial -> `pa`
    - `FC` -> `fc`
+   - `Hb` o hemoglobina -> `hemoglobin` (no lo mandes a `otros_laboratorios` si es un valor numérico)
+   - `Fe` o hierro sérico / ferremia -> `iron`
+   - `Ferritina` -> `ferritin`
+   - `GOT` / `AST` -> `got`; `GPT` / `ALT` -> `gpt` (extrae solo los números, sin duplicar en `otros_laboratorios`)
    - `Tirze` / tirzepatida / fármacos y dosis -> `medications`
    - Plan, indicaciones, dieta, pedidos -> `indicaciones_tratamiento`
    - Próximo control / retorno (ej. `Control en 1 mes`) -> `proximo_control`
@@ -234,6 +238,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
   "visceral_fat": "float o null",
   "muscle_mass_kg": "float o null",
   "basal_metabolism": "float o null",
+  "hemoglobin": "float o null",
   "glucose": "float o null",
   "insulin": "float o null",
   "hba1c": "float o null",
@@ -257,6 +262,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
   "anti_tpo": "float o null",
   "vit_d": "float o null",
   "vit_b12": "float o null",
+  "iron": "float o null",
+  "ferritin": "float o null",
   "calcium": "float o null",
   "magnesium": "float o null",
   "phosphorus": "float o null",
@@ -463,6 +470,7 @@ class MedicalRecord(db.Model):
     muscle_delta = db.Column(db.Float, default=0.0)
     waist_lost = db.Column(db.Float, default=0.0)
     
+    hemoglobin = db.Column(db.Float)
     glucose = db.Column(db.Float)
     insulin = db.Column(db.Float)
     hba1c = db.Column(db.Float)
@@ -486,6 +494,8 @@ class MedicalRecord(db.Model):
     anti_tpo = db.Column(db.Float)
     vit_d = db.Column(db.Float)
     vit_b12 = db.Column(db.Float)
+    iron = db.Column(db.Float)
+    ferritin = db.Column(db.Float)
     calcium = db.Column(db.Float)
     magnesium = db.Column(db.Float)
     phosphorus = db.Column(db.Float)
@@ -548,6 +558,12 @@ class MedicalRecord(db.Model):
         return None
 
     @property
+    def tg_hdl(self):
+        if self.triglycerides is not None and self.hdl is not None and self.hdl > 0:
+            return round(self.triglycerides / self.hdl, 2)
+        return None
+
+    @property
     def fib4(self):
         try:
             if self.patient.age and self.got and self.gpt and self.platelets and self.platelets > 0 and self.gpt > 0:
@@ -594,6 +610,9 @@ with app.app_context():
 
     for alter_sql in [
         'ALTER TABLE medical_record ADD COLUMN platelets FLOAT',
+        'ALTER TABLE medical_record ADD COLUMN hemoglobin FLOAT',
+        'ALTER TABLE medical_record ADD COLUMN iron FLOAT',
+        'ALTER TABLE medical_record ADD COLUMN ferritin FLOAT',
         'ALTER TABLE patient ADD COLUMN user_id INTEGER',
         'ALTER TABLE user ADD COLUMN full_name VARCHAR(100)',
         "ALTER TABLE user ADD COLUMN plan_name VARCHAR(30) DEFAULT 'basico'",
@@ -959,6 +978,7 @@ def patient_detail(id):
                 visceral_fat=parse_float(datos.get('visceral_fat')),
                 muscle_mass_kg=parse_float(datos.get('muscle_mass_kg')),
                 basal_metabolism=parse_float(datos.get('basal_metabolism')),
+                hemoglobin=parse_float(datos.get('hemoglobin')),
                 glucose=parse_float(datos.get('glucose')),
                 insulin=parse_float(datos.get('insulin')),
                 hba1c=parse_float(datos.get('hba1c')),
@@ -982,6 +1002,8 @@ def patient_detail(id):
                 anti_tpo=parse_float(datos.get('anti_tpo')),
                 vit_d=parse_float(datos.get('vit_d')),
                 vit_b12=parse_float(datos.get('vit_b12')),
+                iron=parse_float(datos.get('iron')),
+                ferritin=parse_float(datos.get('ferritin')),
                 calcium=parse_float(datos.get('calcium')),
                 magnesium=parse_float(datos.get('magnesium')),
                 phosphorus=parse_float(datos.get('phosphorus')),
@@ -1179,6 +1201,7 @@ def import_docx(patient_id):
                             visceral_fat=parse_float(item.get('visceral_fat')),
                             muscle_mass_kg=parse_float(item.get('muscle_mass_kg')),
                             basal_metabolism=parse_float(item.get('basal_metabolism')),
+                            hemoglobin=parse_float(item.get('hemoglobin')),
                             glucose=parse_float(item.get('glucose')),
                             insulin=parse_float(item.get('insulin')),
                             hba1c=parse_float(item.get('hba1c')),
@@ -1202,6 +1225,8 @@ def import_docx(patient_id):
                             anti_tpo=parse_float(item.get('anti_tpo')),
                             vit_d=parse_float(item.get('vit_d')),
                             vit_b12=parse_float(item.get('vit_b12')),
+                            iron=parse_float(item.get('iron')),
+                            ferritin=parse_float(item.get('ferritin')),
                             calcium=parse_float(item.get('calcium')),
                             magnesium=parse_float(item.get('magnesium')),
                             phosphorus=parse_float(item.get('phosphorus')),
@@ -1285,6 +1310,7 @@ def new_record(patient_id):
             peso_sin_grasa=parse_float(request.form.get('peso_sin_grasa')),
             grasa_subcutanea_pct=parse_float(request.form.get('grasa_subcutanea_pct')),
             edad_metabolica=parse_int(request.form.get('edad_metabolica')),
+            hemoglobin=parse_float(request.form.get('hemoglobin')),
             glucose=parse_float(request.form.get('glucose')),
             insulin=parse_float(request.form.get('insulin')),
             hba1c=parse_float(request.form.get('hba1c')),
@@ -1308,6 +1334,8 @@ def new_record(patient_id):
             anti_tpo=parse_float(request.form.get('anti_tpo')),
             vit_d=parse_float(request.form.get('vit_d')),
             vit_b12=parse_float(request.form.get('vit_b12')),
+            iron=parse_float(request.form.get('iron')),
+            ferritin=parse_float(request.form.get('ferritin')),
             calcium=parse_float(request.form.get('calcium')),
             magnesium=parse_float(request.form.get('magnesium')),
             phosphorus=parse_float(request.form.get('phosphorus')),
@@ -1376,6 +1404,7 @@ def edit_record(id):
         record.peso_sin_grasa = parse_float(request.form.get('peso_sin_grasa'))
         record.grasa_subcutanea_pct = parse_float(request.form.get('grasa_subcutanea_pct'))
         record.edad_metabolica = parse_int(request.form.get('edad_metabolica'))
+        record.hemoglobin = parse_float(request.form.get('hemoglobin'))
         record.glucose = parse_float(request.form.get('glucose'))
         record.insulin = parse_float(request.form.get('insulin'))
         record.hba1c = parse_float(request.form.get('hba1c'))
@@ -1399,6 +1428,8 @@ def edit_record(id):
         record.anti_tpo = parse_float(request.form.get('anti_tpo'))
         record.vit_d = parse_float(request.form.get('vit_d'))
         record.vit_b12 = parse_float(request.form.get('vit_b12'))
+        record.iron = parse_float(request.form.get('iron'))
+        record.ferritin = parse_float(request.form.get('ferritin'))
         record.calcium = parse_float(request.form.get('calcium'))
         record.magnesium = parse_float(request.form.get('magnesium'))
         record.phosphorus = parse_float(request.form.get('phosphorus'))
@@ -1483,16 +1514,17 @@ def export_excel():
     current_user = get_current_user()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
+    headers_csv = [
         'ID', 'Nombre', 'CI', 'Fecha Nacimiento', 'Edad', 'Género', 'Teléfono', 'Sanatorio', 'Procedencia', 'Profesión', 'Patología', 
         'Seguro Médico', 'Inicio Tratamiento', 'Años Evolución', 'Antecedentes Familiares', 'Antecedentes Personales', 'Comorbilidades', 'Tratamiento Base',
         'Fecha Control', 'Fecha Lab', 'Balanza', 'PA', 'FC', 'Altura (cm)', 'Peso (kg)', 'Peso Perdido (kg)', 'IMC', 'Grasa Corp (kg)', 'Grasa Perdida (kg)', 'Grasa Corp (%)', 'Grasa Visceral', 
-        'Músculo (kg)', 'Músculo Delta (kg)', 'Músculo (%)', 'Metabolismo Basal', 'Masa Grasa (kg)', '% Músculo', '% Músculo Esquelético', 'Masa Músculo Esquelético (kg)', '% Óseo', 'Masa Ósea (kg)', '% Proteína', 'Masa Proteica (kg)', '% Agua Corporal', 'Masa Agua Corporal (kg)', 'Peso Sin Grasa (kg)', 'Grasa Subcutánea (%)', 'Edad Metabólica', 'Cintura (cm)', 'Cintura Perdida (cm)', 'Glicemia', 'Insulina', 'HbA1c (%)', 
-        'Triglicéridos', 'Col. Tot', 'HDL', 'LDL', 'VLDL', 'Ácido Úrico', 'GOT', 'GPT', 'FA', 'Bili Tot', 'Bili Dir', 
-        'Bili Ind', 'Urea', 'Creatinina', 'TSH', 'T4', 'T3', 'Anti-TPO', 'Vit D', 'Vit B12', 'Calcio', 'Magnesio', 
+        'Músculo (kg)', 'Músculo Delta (kg)', 'Músculo (%)', 'Metabolismo Basal', 'Masa Grasa (kg)', '% Músculo', '% Músculo Esquelético', 'Masa Músculo Esquelético (kg)', '% Óseo', 'Masa Ósea (kg)', '% Proteína', 'Masa Proteica (kg)', '% Agua Corporal', 'Masa Agua Corporal (kg)', 'Peso Sin Grasa (kg)', 'Grasa Subcutánea (%)', 'Edad Metabólica', 'Cintura (cm)', 'Cintura Perdida (cm)', 'Hemoglobina', 'Glicemia', 'Insulina', 'HbA1c (%)', 
+        'Triglicéridos', 'Col. Tot', 'HDL', 'LDL', 'VLDL', 'Tg/HDL', 'Ácido Úrico', 'GOT', 'GPT', 'FA', 'Bili Tot', 'Bili Dir', 
+        'Bili Ind', 'Urea', 'Creatinina', 'TSH', 'T4', 'T3', 'Anti-TPO', 'Vit D', 'Vit B12', 'Hierro', 'Ferritina', 'Calcio', 'Magnesio', 
         'Fósforo', 'Cloro', 'Plaquetas', 'Otros Laboratorios', 'Eco Abdominal', 'Eco Tiroidea', 'Otros Estudios', 'Evolución / Notas', 'Indicaciones / Tratamiento', 'Medicación', 
         'Próximo Control', 'HOMA-IR', 'FIB-4', 'Cintura/Altura', 'Conducta Médica'
-    ])
+    ]
+    writer.writerow(headers_csv)
     if current_user and current_user.username == 'admin':
         patients = Patient.query.all()
     elif current_user:
@@ -1507,14 +1539,18 @@ def export_excel():
                     p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type,
                     p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base,
                     r.date, r.lab_date, r.marca_balanza, r.pa, r.fc, r.height, r.weight, r.weight_lost, r.bmi, r.body_fat_kg, r.fat_lost, r.body_fat_pct, r.visceral_fat, r.muscle_mass_kg, r.muscle_delta, r.muscle_mass_pct,
-                    r.basal_metabolism, r.masa_grasa_kg, r.porcentaje_musculo, r.porcentaje_musculo_esqueletico, r.masa_muscular_esqueletica, r.porcentaje_oseo, r.masa_osea, r.porcentaje_proteina, r.masa_proteica, r.porcentaje_agua_corporal, r.masa_agua_corporal, r.peso_sin_grasa, r.grasa_subcutanea_pct, r.edad_metabolica, r.waist, r.waist_lost, r.glucose, r.insulin, r.hba1c, r.triglycerides, r.cholesterol_tot, r.hdl, r.ldl,
-                    r.vldl, r.uric_acid, r.got, r.gpt, r.fa, r.bili_tot, r.bili_dir, r.bili_ind, r.urea, r.creatinine,
-                    r.tsh, r.t4, r.t3, r.anti_tpo, r.vit_d, r.vit_b12, r.calcium, r.magnesium, r.phosphorus, r.chlorine, r.platelets,
+                    r.basal_metabolism, r.masa_grasa_kg, r.porcentaje_musculo, r.porcentaje_musculo_esqueletico, r.masa_muscular_esqueletica, r.porcentaje_oseo, r.masa_osea, r.porcentaje_proteina, r.masa_proteica, r.porcentaje_agua_corporal, r.masa_agua_corporal, r.peso_sin_grasa, r.grasa_subcutanea_pct, r.edad_metabolica, r.waist, r.waist_lost, r.hemoglobin, r.glucose, r.insulin, r.hba1c, r.triglycerides, r.cholesterol_tot, r.hdl, r.ldl,
+                    r.vldl, r.tg_hdl, r.uric_acid, r.got, r.gpt, r.fa, r.bili_tot, r.bili_dir, r.bili_ind, r.urea, r.creatinine,
+                    r.tsh, r.t4, r.t3, r.anti_tpo, r.vit_d, r.vit_b12, r.iron, r.ferritin, r.calcium, r.magnesium, r.phosphorus, r.chlorine, r.platelets,
                     r.otros_laboratorios, r.ecografia_abdominal, r.ecografia_tiroidea, r.otros_estudios, r.notes, r.indicaciones_tratamiento, r.medications,
                     r.proximo_control, r.homair, r.fib4, r.ica_value, r.conducta_medica
                 ])
         else:
-            writer.writerow([p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type, p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+            empty_row = [
+                p.id, p.full_name, p.ci, p.birth_date, p.age, p.gender, p.phone, p.sanatorio, p.procedencia, p.profession, p.pathology_type,
+                p.seguro_medico, p.fecha_inicio_tratamiento, p.evolution_years, p.antecedentes_familiares, p.antecedentes_personales, p.comorbidities, p.tratamiento_base
+            ] + [''] * (len(headers_csv) - 18)
+            writer.writerow(empty_row)
     output.seek(0)
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=matriz_metabolica_pacientes.csv"})
 
