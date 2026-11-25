@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>{{ patient.full_name }} - METABOLISYS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css)" rel="stylesheet">
     <style>
         body {
             background-color: #121212 !important;
@@ -100,10 +100,20 @@
         }
         .planilla-table th {
             white-space: nowrap;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
         }
         .planilla-table td {
-            font-size: 0.82rem;
+            font-size: 0.84rem;
+        }
+        .sticky-param-col {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background-color: #242629 !important;
+            color: #f8f9fa !important;
+            text-align: left !important;
+            font-weight: 600;
+            min-width: 150px;
         }
         .btn-voice {
             display: inline-flex;
@@ -256,10 +266,10 @@
                                 {% if last_record.weight %}<span class="badge bg-dark border border-warning text-warning">Peso: {{ last_record.weight }} kg</span>{% endif %}
                                 {% if last_record.pa %}<span class="badge bg-dark border border-secondary">PA: {{ last_record.pa }}</span>{% endif %}
                                 {% if last_record.hba1c %}<span class="badge bg-dark border border-secondary">HbA1c: {{ last_record.hba1c }}%</span>{% endif %}
-                                {% if last_record.homair %}<span class="badge bg-dark border border-secondary">HOMA: {{ last_record.homair }}</span>{% endif %}
+                                {% if last_record.tg_hdl %}<span class="badge bg-dark border border-secondary">Tg/HDL: {{ last_record.tg_hdl }}</span>{% endif %}
                                 {% if last_record.fib4 %}<span class="badge bg-dark border border-info text-info">FIB-4: {{ last_record.fib4 }}</span>{% endif %}
-                                {% if last_record.vit_d %}<span class="badge bg-dark border border-warning text-warning">Vit D: {{ last_record.vit_d }}</span>{% endif %}
-                                {% if last_record.vit_b12 %}<span class="badge bg-dark border border-warning text-warning">Vit B12: {{ last_record.vit_b12 }}</span>{% endif %}
+                                {% if last_record.vit_d %}<span class="badge bg-dark border border-secondary text-white">Vit D: {{ last_record.vit_d }}</span>{% endif %}
+                                {% if last_record.vit_b12 %}<span class="badge bg-dark border border-secondary text-white">Vit B12: {{ last_record.vit_b12 }}</span>{% endif %}
                             </div>
                             <div class="ultima-consulta-box">{{ last_record.notes or last_record.indicaciones_tratamiento or 'Sin texto registrado en la ultima consulta.' }}</div>
                         {% else %}
@@ -358,7 +368,7 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- PESTANA 3: PLANILLA AUTOMATICA (PESO / LABS Y ESTUDIOS)    -->
+        <!-- PESTANA 3: PLANILLA AUTOMATICA (PESO / LABS / ECOGRAFIAS)  -->
         <!-- ========================================================== -->
         <div class="tab-pane fade" id="planilla" role="tabpanel">
             <div class="card p-4">
@@ -367,55 +377,40 @@
                         <h5 class="text-info m-0">Planilla Comparativa Automatica</h5>
                         <div class="btn-group ms-2" role="group" aria-label="Vista de planilla">
                             <button type="button" class="btn btn-info text-dark sub-tab-btn active" id="btnVistaAntropo" onclick="setPlanillaVista('antropo')">Peso / IMC / Cintura</button>
-                            <button type="button" class="btn btn-outline-info sub-tab-btn" id="btnVistaLabs" onclick="setPlanillaVista('labs')">Laboratorios y Estudios</button>
+                            <button type="button" class="btn btn-outline-info sub-tab-btn" id="btnVistaLabs" onclick="setPlanillaVista('labs')">Laboratorios</button>
+                            <button type="button" class="btn btn-outline-info sub-tab-btn" id="btnVistaEstudios" onclick="setPlanillaVista('estudios')">Ecografias y Estudios</button>
                         </div>
                     </div>
                     {% if last_record %}
                     <div class="d-flex gap-2 flex-wrap small">
                         <span class="badge bg-dark border border-secondary px-2 py-1">ICA: {{ last_record.ica_value or 'N/D' }}</span>
                         <span class="badge bg-dark border border-info text-info px-2 py-1">FIB-4: {{ last_record.fib4 or 'N/D' }}</span>
-                        <span class="badge bg-dark border border-warning text-warning px-2 py-1">HOMA-IR: {{ last_record.homair or 'N/D' }}</span>
+                        <span class="badge bg-dark border border-secondary px-2 py-1">Tg/HDL: {{ last_record.tg_hdl or 'N/D' }}</span>
                     </div>
                     {% endif %}
                 </div>
 
                 {% if all_records %}
-                <div class="table-responsive">
-                    <table class="table table-dark table-striped table-bordered table-hover align-middle text-center planilla-table" id="tablaPlanilla">
+
+                <!-- SUB-VISTA 1: PESO / IMC / CINTURA -->
+                <div id="vistaAntropoContainer" class="table-responsive">
+                    <table class="table table-dark table-striped table-bordered table-hover align-middle text-center planilla-table">
                         <thead class="table-secondary text-dark">
                             <tr>
-                                <th class="col-common">Fecha</th>
-                                <th class="col-antropo">Peso (kg)</th>
-                                <th class="col-antropo">Dif. Peso</th>
-                                <th class="col-antropo">IMC</th>
-                                <th class="col-antropo">PA</th>
-                                <th class="col-antropo">Cintura</th>
-                                <th class="col-labs">Glic</th>
-                                <th class="col-labs">Insul</th>
-                                <th class="col-labs">HbA1c</th>
-                                <th class="col-labs">HOMA</th>
-                                <th class="col-labs">Col / HDL / LDL</th>
-                                <th class="col-labs">TG</th>
-                                <th class="col-labs">GOT / GPT / FA</th>
-                                <th class="col-labs">Plaq</th>
-                                <th class="col-labs">FIB-4</th>
-                                <th class="col-labs">TSH / T4</th>
-                                <th class="col-labs">Urea / Creat</th>
-                                <th class="col-labs">Vit D</th>
-                                <th class="col-labs">Vit B12</th>
-                                <th class="col-labs">Otros Labs</th>
-                                <th class="col-labs">Ecografias y Estudios</th>
+                                <th>Fecha</th>
+                                <th>Peso (kg)</th>
+                                <th>Dif. Peso</th>
+                                <th>IMC</th>
+                                <th>PA</th>
+                                <th>Cintura</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for r in all_records %}
                             <tr>
-                                <td class="col-common fw-bold text-warning text-nowrap">
-                                    {{ r.date }}
-                                    {% if r.lab_date %}<div class="text-info" style="font-size: 0.7rem;">Lab: {{ r.lab_date }}</div>{% endif %}
-                                </td>
-                                <td class="col-antropo fw-bold">{{ r.weight or '-' }}</td>
-                                <td class="col-antropo">
+                                <td class="fw-bold text-warning text-nowrap">{{ r.date }}</td>
+                                <td class="fw-bold">{{ r.weight or '-' }}</td>
+                                <td>
                                     {% if r.weight_lost %}
                                         {% if r.weight_lost > 0 %}
                                             <span class="badge bg-success">-{{ r.weight_lost }} kg</span>
@@ -426,34 +421,126 @@
                                         {% endif %}
                                     {% else %}-{% endif %}
                                 </td>
-                                <td class="col-antropo">{{ r.bmi or '-' }}</td>
-                                <td class="col-antropo">{{ r.pa or '-' }}</td>
-                                <td class="col-antropo">{{ r.waist or '-' }}</td>
-                                <td class="col-labs">{{ r.glucose or '-' }}</td>
-                                <td class="col-labs">{{ r.insulin or '-' }}</td>
-                                <td class="col-labs">{{ r.hba1c or '-' }}</td>
-                                <td class="col-labs">{{ r.homair or '-' }}</td>
-                                <td class="col-labs text-nowrap">{{ r.cholesterol_tot or '-' }} / {{ r.hdl or '-' }} / {{ r.ldl or '-' }}</td>
-                                <td class="col-labs">{{ r.triglycerides or '-' }}</td>
-                                <td class="col-labs text-nowrap">{{ r.got or '-' }} / {{ r.gpt or '-' }} / {{ r.fa or '-' }}</td>
-                                <td class="col-labs">{{ r.platelets or '-' }}</td>
-                                <td class="col-labs text-info fw-bold">{{ r.fib4 or '-' }}</td>
-                                <td class="col-labs text-nowrap">{{ r.tsh or '-' }} / {{ r.t4 or '-' }}</td>
-                                <td class="col-labs text-nowrap">{{ r.urea or '-' }} / {{ r.creatinine or '-' }}</td>
-                                <td class="col-labs text-warning fw-semibold">{{ r.vit_d or '-' }}</td>
-                                <td class="col-labs text-warning fw-semibold">{{ r.vit_b12 or '-' }}</td>
-                                <td class="col-labs text-start" style="min-width: 140px;">{{ r.otros_laboratorios or '-' }}</td>
-                                <td class="col-labs text-start" style="min-width: 180px;">
-                                    {% if r.ecografia_abdominal %}<div><strong class="text-warning">Eco Abd:</strong> {{ r.ecografia_abdominal }}</div>{% endif %}
-                                    {% if r.ecografia_tiroidea %}<div><strong class="text-warning">Eco Tir:</strong> {{ r.ecografia_tiroidea }}</div>{% endif %}
-                                    {% if r.otros_estudios %}<div><strong class="text-warning">Otros:</strong> {{ r.otros_estudios }}</div>{% endif %}
-                                    {% if not r.ecografia_abdominal and not r.ecografia_tiroidea and not r.otros_estudios %}-{% endif %}
-                                </td>
+                                <td>{{ r.bmi or '-' }}</td>
+                                <td>{{ r.pa or '-' }}</td>
+                                <td>{{ r.waist or '-' }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+
+                <!-- SUB-VISTA 2: LABORATORIOS EN VERTICAL (ORDEN EXACTO DRA. MULLER) -->
+                <div id="vistaLabsContainer" class="table-responsive" style="display: none;">
+                    <table class="table table-dark table-striped table-bordered table-hover align-middle text-center planilla-table">
+                        <thead class="table-secondary text-dark">
+                            <tr>
+                                <th class="sticky-param-col" style="background-color: #ced4da !important; color: #1a1a1a !important;">Parametro</th>
+                                {% for r in all_records %}
+                                <th class="text-nowrap">
+                                    {{ r.date }}
+                                    {% if r.lab_date %}<div style="font-size: 0.7rem; color: #0b5ed7;">Lab: {{ r.lab_date }}</div>{% endif %}
+                                </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="sticky-param-col">Hb (hemoglobina)</td>
+                                {% for r in all_records %}<td>{{ r.hemoglobin or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Glic</td>
+                                {% for r in all_records %}<td>{{ r.glucose or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">HbA1c</td>
+                                {% for r in all_records %}<td>{{ r.hba1c or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">U / Creat</td>
+                                {% for r in all_records %}<td class="text-nowrap">{{ r.urea or '-' }} / {{ r.creatinine or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">GOT / GPT</td>
+                                {% for r in all_records %}<td class="text-nowrap">{{ r.got or '-' }} / {{ r.gpt or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Col / HDL / LDL</td>
+                                {% for r in all_records %}<td class="text-nowrap">{{ r.cholesterol_tot or '-' }} / {{ r.hdl or '-' }} / {{ r.ldl or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">TG</td>
+                                {% for r in all_records %}<td>{{ r.triglycerides or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Tg / HDL</td>
+                                {% for r in all_records %}<td>{{ r.tg_hdl or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Ac. Urico</td>
+                                {% for r in all_records %}<td>{{ r.uric_acid or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Ca / Mg</td>
+                                {% for r in all_records %}<td class="text-nowrap">{{ r.calcium or '-' }} / {{ r.magnesium or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">TSH / FT4</td>
+                                {% for r in all_records %}<td class="text-nowrap">{{ r.tsh or '-' }} / {{ r.t4 or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Vit D</td>
+                                {% for r in all_records %}<td class="text-white">{{ r.vit_d or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Vit B12</td>
+                                {% for r in all_records %}<td class="text-white">{{ r.vit_b12 or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Fe / Ferritina</td>
+                                {% for r in all_records %}<td class="text-nowrap">{{ r.iron or '-' }} / {{ r.ferritin or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Insulina</td>
+                                {% for r in all_records %}<td>{{ r.insulin or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">FIB-4</td>
+                                {% for r in all_records %}<td class="text-info fw-bold">{{ r.fib4 or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-param-col">Otros Labs</td>
+                                {% for r in all_records %}<td class="text-start" style="min-width: 170px; white-space: pre-wrap;">{{ r.otros_laboratorios or '-' }}</td>{% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- SUB-VISTA 3: ECOGRAFIAS Y ESTUDIOS SEPARADOS -->
+                <div id="vistaEstudiosContainer" class="table-responsive" style="display: none;">
+                    <table class="table table-dark table-striped table-bordered table-hover align-middle text-center planilla-table">
+                        <thead class="table-secondary text-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Ecografia Abdominal</th>
+                                <th>Ecografia Tiroidea</th>
+                                <th>Otros Estudios</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in all_records %}
+                            <tr>
+                                <td class="fw-bold text-warning text-nowrap">{{ r.date }}</td>
+                                <td class="text-start">{{ r.ecografia_abdominal or '-' }}</td>
+                                <td class="text-start">{{ r.ecografia_tiroidea or '-' }}</td>
+                                <td class="text-start">{{ r.otros_estudios or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
                 {% else %}
                 <p class="text-muted text-center py-4">Aun no hay datos en la planilla comparativa.</p>
                 {% endif %}
@@ -495,37 +582,36 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js)"></script>
 <script>
 let recognition = null;
 let dictando = false;
 
 function setPlanillaVista(modo) {
-    const esLabs = (modo === 'labs');
+    const cAntropo = document.getElementById('vistaAntropoContainer');
+    const cLabs = document.getElementById('vistaLabsContainer');
+    const cEstudios = document.getElementById('vistaEstudiosContainer');
 
-    document.querySelectorAll('.col-antropo').forEach(el => {
-        el.style.display = esLabs ? 'none' : '';
-    });
-    document.querySelectorAll('.col-labs').forEach(el => {
-        el.style.display = esLabs ? '' : 'none';
-    });
+    if (cAntropo) cAntropo.style.display = (modo === 'antropo') ? '' : 'none';
+    if (cLabs) cLabs.style.display = (modo === 'labs') ? '' : 'none';
+    if (cEstudios) cEstudios.style.display = (modo === 'estudios') ? '' : 'none';
 
-    const btnAntropo = document.getElementById('btnVistaAntropo');
-    const btnLabs = document.getElementById('btnVistaLabs');
+    const botones = {
+        antropo: document.getElementById('btnVistaAntropo'),
+        labs: document.getElementById('btnVistaLabs'),
+        estudios: document.getElementById('btnVistaEstudios')
+    };
 
-    if (btnAntropo && btnLabs) {
-        if (esLabs) {
-            btnLabs.classList.remove('btn-outline-info');
-            btnLabs.classList.add('btn-info', 'text-dark', 'active');
-            btnAntropo.classList.remove('btn-info', 'text-dark', 'active');
-            btnAntropo.classList.add('btn-outline-info');
+    Object.entries(botones).forEach(([clave, btn]) => {
+        if (!btn) return;
+        if (clave === modo) {
+            btn.classList.remove('btn-outline-info');
+            btn.classList.add('btn-info', 'text-dark', 'active');
         } else {
-            btnAntropo.classList.remove('btn-outline-info');
-            btnAntropo.classList.add('btn-info', 'text-dark', 'active');
-            btnLabs.classList.remove('btn-info', 'text-dark', 'active');
-            btnLabs.classList.add('btn-outline-info');
+            btn.classList.remove('btn-info', 'text-dark', 'active');
+            btn.classList.add('btn-outline-info');
         }
-    }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
