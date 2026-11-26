@@ -640,6 +640,26 @@ class MedicalRecord(db.Model):
             pass
         return None
 
+    @property
+    def anti_tpo_display(self):
+        if self.anti_tpo is not None:
+            return str(self.anti_tpo)
+        fuente = f"{self.otros_laboratorios or ''} {self.notes or ''}"
+        m = re.search(r'\banti[\s\-]?tpo\b[:\s]*([a-zA-Z0-9.,<>+-]+)', fuente, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip('.,;')
+            return val.capitalize() if val.isalpha() else val
+        return '-'
+
+    @property
+    def folic_acid_display(self):
+        fuente = f"{self.otros_laboratorios or ''} {self.notes or ''}"
+        m = re.search(r'\b(?:ac\.?\s*)?f[oó]lico\b[:\s]*([a-zA-Z0-9.,<>+-]+)', fuente, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip('.,;')
+            return val.capitalize() if val.isalpha() else val
+        return '-'
+
 class PatientPhoto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
