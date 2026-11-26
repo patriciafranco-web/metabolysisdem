@@ -70,17 +70,26 @@ def format_text(text_val):
 def parse_float(value):
     if value is None or value == "":
         return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return float(value)
+    cleaned = str(value).replace(',', '.').replace('%', '').strip()
+    match = re.search(r'-?\d+(?:\.\d+)?', cleaned)
+    if not match:
+        return None
     try:
-        return float(str(value).replace(',', '.').strip())
-    except:
+        return float(match.group(0))
+    except Exception:
         return None
 
 def parse_int(value):
-    if value is None or value == "":
+    val_f = parse_float(value)
+    if val_f is None:
         return None
     try:
-        return int(float(str(value).replace(',', '.').strip()))
-    except:
+        return int(round(val_f))
+    except Exception:
         return None
 # ----------------------------------------
 
@@ -154,7 +163,7 @@ def registrar_uso_ia(user, unidades=1):
     db.session.commit()
     print(f"USO IA [{uso.year_month}] usuario={user.username}: {uso.extractions_count}/{uso.monthly_limit}", flush=True)
 
-# --- EXTRACTOR CLÍNICO CON IA (CLAUDE SONNET 5.5 + FALLBACK / ANTHROPIC) ---
+# --- EXTRACTOR CLÍNICO CON IA (CLAUDE + FALLBACK / ANTHROPIC) ---
 MODELOS_CLAUDE = [
     "claude-sonnet-5-5",
     "claude-sonnet-5.5",
@@ -197,32 +206,47 @@ def extraer_datos_con_ia(texto_consulta, contar_uso=True):
         return {}
 
     prompt = f"""
-Eres un asistente médico experto en extracción fiel de datos clínicos en español (Paraguay/Latinoamérica).
-Lee la siguiente nota de consulta médica tal como está escrita y extrae ÚNICAMENTE los valores que aparezcan explícitamente en el texto.
+Eres un asistente médico experto en extracción exhaustiva y fiel de datos clínicos en español (Paraguay/Latinoamérica).
+Lee TODO el texto de la nota médica o laboratorio tal como está escrito y extrae TODOS los datos explícitos presentes, sin omitir ninguno.
 NO inventes, NO completes por deducción ni asumas valores que no estén escritos.
 Respeta el texto original y las abreviaturas tal como aparecen en la nota.
 
 Reglas de interpretación estricta:
-1. Para valores numéricos devuelve solo el número con punto decimal (ej. 76.25), sin unidades. Si hay dos pesos mencionados (ej. uno de evaluación previa y otro "hoy"), toma el peso actual/del día en `weight` y deja el detalle completo en `notes`.
-2. Fechas cortas como `DD.MM.AA` o `DD/MM/AA` (por ejemplo `27.03.26` -> `2026-03-27`, `29.04.26` -> `2026-04-29`): si hay fecha explícita de laboratorio distinta a la consulta, ponla en `lab_date` en formato `YYYY-MM-DD`; si no, `null`.
+1. Para valores numéricos devuelve solo el número con punto decimal (ej. 76.25), sin unidades ni símbolos como `%` (por ejemplo, si dice `Ferritina 68%`, pon `68` en `ferritin`). Si hay dos pesos mencionados (ej. uno de evaluación previa y otro "hoy"), toma el peso actual/del día en `weight` y deja el detalle completo en `notes`.
+2. Fechas cortas como `DD.MM.AA` o `DD/MM/AA` (por ejemplo `27.03.26` -> `2026-03-27`, `27.05.26` -> `2026-05-27`, `29.04.26` -> `2026-04-29`): si hay fecha explícita de laboratorio distinta a la consulta, ponla en `lab_date` en formato `YYYY-MM-DD`; si no, `null`.
 3. `Inbody` / `InBody` / `Eval nutr Inbody`: NO es un estudio de imagen ni va a `otros_estudios`. Es composición corporal / balanza:
   - Si menciona `Inbody` o `InBody`, pon `"InBody"` en `marca_balanza`.
   - El peso de la consulta/día va a `weight` (si hay un peso de evaluación previa como `Eval nutr Inbody 26.03.26: peso 97.4 kg` y otro `Peso hoy 27.03.26: 98.3`, toma el peso del día/consulta en `weight` y conserva todo el detalle en `notes`).
   - `MM` o masa muscular -> `muscle_mass_kg`
   - `Grasa ...%` o `%grasa` -> `body_fat_pct`
   - `GV` o grasa visceral -> `visceral_fat`
-4. Abreviaturas comunes en consultas/evaluaciones:
+4. Abreviaturas y equivalencias de laboratorio / clínica (extrae TODOS los que estén presentes):
   - `PA` o presión arterial -> `pa`
   - `FC` -> `fc`
-  - `Hb` o hemoglobina -> `hemoglobin` (no lo mandes a `otros_laboratorios` si es un valor numérico)
-  - `Fe` o hierro sérico / ferremia -> `iron`
+  - `Hb` o hemoglobina -> `hemoglobin`
+  - `Glc` o glucemia / glicemia -> `glucose`
+  - `Insulina` -> `insulin`
+  - `HbA1c` / `A1c` -> `hba1c`
+  - `Tg` o triglicéridos -> `triglycerides`
+  - `Ct` / `Col` / `Colesterol` -> `cholesterol_tot`
+  - `HDL` -> `hdl`; `LDL` -> `ldl`; `VLDL` -> `vldl`
+  - `Ac Urico` / `Ácido úrico` -> `uric_acid`
+  - `GOT` / `AST` -> `got`; `GPT` / `ALT` -> `gpt`; `FA` / `Fosfatasa alcalina` -> `fa`
+  - `Bili tot` / `BT` -> `bili_tot`; `Bili dir` / `BD` -> `bili_dir`; `Bili ind` / `BI` -> `bili_ind`
+  - `Urea` -> `urea`; `Creat` / `Creatinina` -> `creatinine`
+  - `TSH` -> `tsh`; `T4` / `FT4` / `T4 libre` -> `t4`; `T3` / `FT3` / `T3 libre` -> `t3`
+  - `Anti-TPO` / `Antitpo` / `ATPO`: si viene número, ponlo en `anti_tpo`; si viene texto/cualitativo como `"Neg"` o `"Pos"`, inclúyelo también en `otros_laboratorios`.
+  - `Vit D` / `Vitd` / `25-OH Vit D` -> `vit_d`
+  - `Vit B12` / `B12` -> `vit_b12`
+  - `Fe` / `Hierro` / `Ferremia` -> `iron`
   - `Ferritina` -> `ferritin`
-  - `GOT` / `AST` -> `got`; `GPT` / `ALT` -> `gpt` (extrae solo los números, sin duplicar en `otros_laboratorios`)
+  - `Ca` / `Calcio` -> `calcium`; `Mg` / `Magnesio` -> `magnesium`; `P` / `Fósforo` -> `phosphorus`; `Cl` / `Cloro` -> `chlorine`
+  - `Plaquetas`: si vienen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo igual.
+  - `otros_laboratorios`: incluye aquí de forma clara y completa cualquier otro resultado de laboratorio que no tenga columna numérica propia o que sea cualitativo/hormonal/adicional (por ejemplo: `Ac Folico`, `P. Hep Ok`, `Testo total`, `PRL`, `FSH`, `LH`, `E2`, `A4`, `DHEA-S`, etc.), para que NUNCA se pierda nada.
   - `Tirze` / tirzepatida / fármacos y dosis -> `medications`
   - Plan, indicaciones, dieta, pedidos -> `indicaciones_tratamiento`
   - Próximo control / retorno (ej. `Control en 1 mes`) -> `proximo_control`
-  - Plaquetas: si vienen en miles completos (ej. 250000 o 250.000), conviértelo a 10^3/uL (ej. 250); si ya está en cientos (ej. 250), déjalo igual.
-  - `otros_estudios`: úsalo ÚNICAMENTE para estudios complementarios como ecografías, Doppler, tomografías, resonancias, holter, MAPA, etc., NUNCA para datos de InBody (peso, MM, %grasa, GV).
+  - `otros_estudios`: úsalo ÚNICAMENTE para estudios complementarios como ecografías, Doppler, tomografías, resonancias, holter, MAPA, etc., NUNCA para datos de InBody.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques markdown) con estas claves exactas:
 {{
@@ -278,7 +302,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional ni bloques m
   "proximo_control": "string o null"
 }}
 
-NOTA MÉDICA:
+NOTA MÉDICA COMPLETA:
 \"\"\"{texto_consulta}\"\"\"
 """
     url = "https://api" + ".anthropic" + ".com/v1/messages"
@@ -292,13 +316,13 @@ NOTA MÉDICA:
     for modelo in MODELOS_CLAUDE:
         payload = {
             "model": modelo,
-            "max_tokens": 1400,
+            "max_tokens": 2500,
             "messages": [
                 {"role": "user", "content": prompt}
             ]
         }
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=20)
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
             if resp.status_code == 200:
                 session.pop('last_ia_error', None)
                 print(f"IA OK usando modelo: {modelo}", flush=True)
@@ -422,7 +446,7 @@ def extraer_historial_por_fecha_con_ia(texto_historial, fecha_por_defecto):
 
     consultas_resultado = []
     procesados_ia = 0
-    for fecha_bloque, texto_bloque in bloques[:6]:
+    for fecha_bloque, texto_bloque in bloques:
         datos_ia = extraer_datos_con_ia(texto_bloque, contar_uso=False)
         item = dict(datos_ia) if isinstance(datos_ia, dict) else {}
         if datos_ia:
