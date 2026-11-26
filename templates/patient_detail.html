@@ -270,6 +270,8 @@
                                 {% if last_record.fib4 %}<span class="badge bg-dark border border-info text-info">FIB-4: {{ last_record.fib4 }}</span>{% endif %}
                                 {% if last_record.vit_d %}<span class="badge bg-dark border border-secondary text-white">Vit D: {{ last_record.vit_d }}</span>{% endif %}
                                 {% if last_record.vit_b12 %}<span class="badge bg-dark border border-secondary text-white">Vit B12: {{ last_record.vit_b12 }}</span>{% endif %}
+                                {% if last_record.iron %}<span class="badge bg-dark border border-secondary text-white">Fe: {{ last_record.iron }}</span>{% endif %}
+                                {% if last_record.ferritin %}<span class="badge bg-dark border border-secondary text-white">Ferritina: {{ last_record.ferritin }}</span>{% endif %}
                             </div>
                             <div class="ultima-consulta-box">{{ last_record.notes or last_record.indicaciones_tratamiento or 'Sin texto registrado en la ultima consulta.' }}</div>
                         {% else %}
@@ -434,7 +436,7 @@
                 <div id="vistaLabsContainer" class="table-responsive" style="display: none;">
                     {% set lab_records = [] %}
                     {% for r in all_records %}
-                        {% if r.lab_date or r.otros_laboratorios or r.hemoglobin is not none or r.glucose is not none or r.hba1c is not none or r.urea is not none or r.creatinine is not none or r.got is not none or r.gpt is not none or r.cholesterol_tot is not none or r.hdl is not none or r.ldl is not none or r.triglycerides is not none or r.uric_acid is not none or r.calcium is not none or r.magnesium is not none or r.tsh is not none or r.t4 is not none or r.vit_d is not none or r.vit_b12 is not none or r.iron is not none or r.ferritin is not none or r.insulin is not none %}
+                        {% if r.lab_date or r.otros_laboratorios or r.hemoglobin is not none or r.glucose is not none or r.hba1c is not none or r.urea is not none or r.creatinine is not none or r.got is not none or r.gpt is not none or r.cholesterol_tot is not none or r.hdl is not none or r.ldl is not none or r.triglycerides is not none or r.uric_acid is not none or r.calcium is not none or r.magnesium is not none or r.tsh is not none or r.t4 is not none or r.anti_tpo is not none or r.vit_d is not none or r.vit_b12 is not none or r.iron is not none or r.ferritin is not none or r.insulin is not none %}
                             {% set _ = lab_records.append(r) %}
                         {% endif %}
                     {% endfor %}
@@ -498,12 +500,38 @@
                                 {% for r in lab_records %}<td class="text-nowrap">{{ r.tsh or '-' }} / {{ r.t4 or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
+                                <td class="sticky-lab-col">Anti-TPO</td>
+                                {% for r in lab_records %}
+                                    <td>
+                                        {% if r.anti_tpo is not none %}
+                                            {{ r.anti_tpo }}
+                                        {% elif r.otros_laboratorios and 'antitpo' in (r.otros_laboratorios | lower) %}
+                                            Ver detalle
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
                                 <td class="sticky-lab-col">Vit D</td>
                                 {% for r in lab_records %}<td class="text-white">{{ r.vit_d or '-' }}</td>{% endfor %}
                             </tr>
                             <tr>
                                 <td class="sticky-lab-col">Vit B12</td>
                                 {% for r in lab_records %}<td class="text-white">{{ r.vit_b12 or '-' }}</td>{% endfor %}
+                            </tr>
+                            <tr>
+                                <td class="sticky-lab-col">Ac. Folico</td>
+                                {% for r in lab_records %}
+                                    <td class="text-white">
+                                        {% if r.otros_laboratorios and ('folico' in (r.otros_laboratorios | lower) or 'fólico' in (r.otros_laboratorios | lower)) %}
+                                            Incluido en labs
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
                             </tr>
                             <tr>
                                 <td class="sticky-lab-col">Fe / Ferritina</td>
