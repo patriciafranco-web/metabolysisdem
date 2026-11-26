@@ -501,17 +501,7 @@
                             </tr>
                             <tr>
                                 <td class="sticky-lab-col">Anti-TPO</td>
-                                {% for r in lab_records %}
-                                    <td>
-                                        {% if r.anti_tpo is not none %}
-                                            {{ r.anti_tpo }}
-                                        {% elif r.otros_laboratorios and 'antitpo' in (r.otros_laboratorios | lower) %}
-                                            Ver detalle
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                {% endfor %}
+                                {% for r in lab_records %}<td>{{ r.anti_tpo_display }}</td>{% endfor %}
                             </tr>
                             <tr>
                                 <td class="sticky-lab-col">Vit D</td>
@@ -523,15 +513,7 @@
                             </tr>
                             <tr>
                                 <td class="sticky-lab-col">Ac. Folico</td>
-                                {% for r in lab_records %}
-                                    <td class="text-white">
-                                        {% if r.otros_laboratorios and ('folico' in (r.otros_laboratorios | lower) or 'fólico' in (r.otros_laboratorios | lower)) %}
-                                            Incluido en labs
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                {% endfor %}
+                                {% for r in lab_records %}<td class="text-white">{{ r.folic_acid_display }}</td>{% endfor %}
                             </tr>
                             <tr>
                                 <td class="sticky-lab-col">Fe / Ferritina</td>
