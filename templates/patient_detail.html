@@ -529,7 +529,7 @@
                             </tr>
                             <tr>
                                 <td class="sticky-lab-col">Otros Labs</td>
-                                {% for r in lab_records %}<td class="text-start" style="min-width: 170px; white-space: pre-wrap;">{{ r.otros_laboratorios or '-' }}</td>{% endfor %}
+                                {% for r in lab_records %}<td class="text-start otros-labs-cell" data-raw="{{ r.otros_laboratorios or '' }}" style="min-width: 170px; white-space: pre-wrap;">{{ r.otros_laboratorios or '-' }}</td>{% endfor %}
                             </tr>
                         </tbody>
                     </table>
@@ -608,6 +608,31 @@
 let recognition = null;
 let dictando = false;
 
+function limpiarOtrosLabsRepetidos() {
+    const patronesARemover = [
+        /\b(?:ac\.?\s*)?f[oó]lico\b\s*[:\-]?\s*[a-zA-Z0-9.,<>+-]+%?/gi,
+        /\banti[\s\-]?tpo\b\s*[:\-]?\s*[a-zA-Z0-9.,<>+-]+%?/gi
+    ];
+
+    document.querySelectorAll('.otros-labs-cell').forEach((celda) => {
+        const raw = (celda.getAttribute('data-raw') || '').trim();
+        if (!raw) {
+            celda.textContent = '-';
+            return;
+        }
+        let limpio = raw;
+        patronesARemover.forEach((regex) => {
+            limpio = limpio.replace(regex, '');
+        });
+        limpio = limpio
+            .split(',')
+            .map((parte) => parte.replace(/^[\s;:-]+|[\s;:-]+$/g, '').trim())
+            .filter(Boolean)
+            .join(', ');
+        celda.textContent = limpio || '-';
+    });
+}
+
 function setPlanillaVista(modo) {
     const cAntropo = document.getElementById('vistaAntropoContainer');
     const cLabs = document.getElementById('vistaLabsContainer');
@@ -637,6 +662,7 @@ function setPlanillaVista(modo) {
 
 document.addEventListener('DOMContentLoaded', function() {
     setPlanillaVista('antropo');
+    limpiarOtrosLabsRepetidos();
 });
 
 function toggleDictado() {
